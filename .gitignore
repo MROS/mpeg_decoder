@@ -9,3 +9,5 @@ mpeg-decoder
 *.swo
 .idea/
 .vscode/
+.kdev4/
+*.kdev4
