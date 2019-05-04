@@ -1,0 +1,11 @@
+# build
+build/
+cmake-build-debug
+*.o
+mpeg-decoder
+
+# editor
+*.swp
+*.swo
+.idea/
+.vscode/
