@@ -10,6 +10,12 @@
 sudo apt install libsfml-dev
 ```
 
+在 arch 系的發行版，可用
+
+``` sh
+sudo pacman -S sfml
+```
+
 進行安裝
 
 ## 編譯
