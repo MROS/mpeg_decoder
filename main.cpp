@@ -1,6 +1,12 @@
-#include "play_video.h"
+#include <iostream>
+#include <fstream>
+#include <stdio.h>
 
-#include <stdint.h>
+#include "play_video.h"
+#include "decoder.h"
+
+
+using namespace std;
 
 const uint32_t picture_start_code = 0x00000100;
 
@@ -19,8 +25,22 @@ const uint32_t system_start_code_min = 0x000001B9;
 const uint32_t system_start_code_max = 0x000001FF;
 
 
-int main()
+int main(int argc, char *argv[])
 {
-	play_images();
-	return 0;
+	if (argc != 2) {
+		cout << "用法： ./mpeg-decoder <mpeg file>" << endl;
+		return 1;
+	}
+
+	ifstream mpeg_file(argv[1], ios::in | ios::binary);
+	if (mpeg_file.is_open()) {
+		Decoder decoder(mpeg_file);
+		decoder.play();
+		return 0;
+	} else {
+		cout << "無法開啓檔案：" << argv[1] << endl;
+		return 1;
+	}
+
+//	play_images();
 }
