@@ -3,13 +3,18 @@
 
 #include <fstream>
 
+#include "bit_reader.h"
+
 class Decoder {
 private:
-	std::ifstream file;
+	BitReader bit_reader;
 public:
-	Decoder(std::ifstream &f): file(std::move(f))
-	{};
+	Decoder(std::ifstream &f): bit_reader(f) {};
 	void play();
+	void video_sequence();
+	void sequence_header();
+
+	void group_of_pictures();
 };
 
 #endif //MPEG_DECODER_DECODER_H
