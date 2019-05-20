@@ -22,7 +22,11 @@ const uint32_t system_start_code_max = 0x000001FF;
 
 
 void Decoder::play() {
-	uint32_t a = this->bit_reader.eat_bits(32);
+	uint32_t a = this->bit_reader.peek_bits(31);
+	cout << "read: " << a << endl;
+	a = this->bit_reader.peek_bits(32);
+	cout << "read: " << a << endl;
+	a = this->bit_reader.peek_bits(32);
 	cout << "read: " << a << endl;
 	a = this->bit_reader.peek_bits(32);
 	cout << "read: " << a << endl;
