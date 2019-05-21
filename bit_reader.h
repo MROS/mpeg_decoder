@@ -17,6 +17,8 @@ public:
 	uint32_t peek_bits(uint length);
 	// 讀取並移動
 	uint32_t eat_bits(uint length);
+
+	void next_start_code();
 };
 
 
