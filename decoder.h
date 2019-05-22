@@ -15,6 +15,12 @@ public:
 	void sequence_header();
 
 	void group_of_pictures();
+
+	void picture();
+
+	void slice();
+
+	void macroblock();
 };
 
 #endif //MPEG_DECODER_DECODER_H

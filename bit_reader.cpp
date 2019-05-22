@@ -19,7 +19,7 @@ uint32_t BitReader::read_bits(uint length, bool eat) {
 	char original_bit_head = this->bit_head;
 
 	uint counter = length;
-	uint step = 0;
+	int step = 0;
 	uint32_t ret = 0;
 
 	while (counter > 0) {
@@ -59,7 +59,18 @@ void BitReader::next_start_code() {
 	if (this->bit_head != 0) {
 		this->bit_head = 0;
 		this->current_byte = this->file.get();
+		cout << "前進 1 byte" << endl;
 	}
+	while (this->peek_bits(24) != 1) {
+		this->current_byte = this->file.get();
+		cout << "前進 1 byte" << endl;
+	}
+}
+
+void BitReader::show_head() {
+    cout << "current_byte: " << int(this->current_byte) << endl;
+	cout << "bit_head: " << this->bit_head << endl;
+	cout << "file position: " << this->file.tellg() << endl;
 }
 
 

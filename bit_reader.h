@@ -18,6 +18,8 @@ public:
 	// 讀取並移動
 	uint32_t eat_bits(uint length);
 
+	void show_head();
+
 	void next_start_code();
 };
 

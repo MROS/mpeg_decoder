@@ -19,7 +19,11 @@ int main(int argc, char *argv[])
 	ifstream mpeg_file(argv[1], ios::in | ios::binary);
 	if (mpeg_file.is_open()) {
 		Decoder decoder(mpeg_file);
-		decoder.play();
+		try {
+			decoder.play();
+		} catch (string e) {
+			cerr << e << endl;
+		}
 		return 0;
 	} else {
 		cout << "無法開啓檔案：" << argv[1] << endl;
