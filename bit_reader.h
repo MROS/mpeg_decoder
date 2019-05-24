@@ -3,6 +3,14 @@
 
 #include <fstream>
 #include <stdint.h>
+#include <vector>
+
+struct VlcTable {
+	int min_len, max_len;
+	std::vector<std::vector<int>> table;
+	std::vector<int> min_code;
+	std::vector<int> max_code;
+};
 
 class BitReader {
 private:
@@ -21,6 +29,8 @@ public:
 	void show_head();
 
 	void next_start_code();
+
+	int32_t read_vlc(VlcTable table);
 };
 
 

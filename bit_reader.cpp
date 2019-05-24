@@ -24,7 +24,6 @@ uint32_t BitReader::read_bits(uint length, bool eat) {
 
 	while (counter > 0) {
 		bool v = (1 << (7 - this->bit_head)) & this->current_byte;
-//		cout << (v ? 1 : 0);
 		ret = (ret << 1u) + v;
 
 		this->bit_head++;
@@ -71,6 +70,28 @@ void BitReader::show_head() {
     cout << "current_byte: " << int(this->current_byte) << endl;
 	cout << "bit_head: " << this->bit_head << endl;
 	cout << "file position: " << this->file.tellg() << endl;
+}
+
+int32_t BitReader::read_vlc(VlcTable table) {
+	int len = table.min_len;
+    uint32_t code = this->eat_bits(table.min_len);
+
+    while (len <= table.max_len) {
+    	if (code <= table.max_code[len] && code >= table.min_code[len]) {
+			return table.table[len][code - table.min_code[len]];
+    	}
+
+		bool v = (1 << (7 - this->bit_head)) & this->current_byte;
+    	code = (code << 1) + v;
+		len++;
+		this->bit_head++;
+		if (this->bit_head == 8) {
+			this->bit_head = 0;
+			this->current_byte = this->file.get();
+		}
+    }
+
+	return 0;
 }
 
 
