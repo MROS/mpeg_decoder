@@ -84,12 +84,13 @@ void BitReader::show_head() {
 }
 
 template <typename T>
-T BitReader::read_vlc(VlcTable<T> table) {
+T BitReader::read_vlc(VlcTable<T> &table) {
 	int len = table.min_len;
     uint32_t code = this->eat_bits(table.min_len);
 
     while (len <= table.max_len) {
-    	if (code <= table.max_code[len] && code >= table.min_code[len]) {
+//		cout << "len: " << len << ", code: " << code << endl;
+    	if (code - table.min_code[len] < table.table[len].size()) {
 			return table.table[len][code - table.min_code[len]];
     	}
 
@@ -103,7 +104,11 @@ T BitReader::read_vlc(VlcTable<T> table) {
 		}
     }
 
-	return 0;
+    throw "無法匹配霍夫曼表"s;
+
+//	return 0;
 }
 
-
+template IntWrap BitReader::read_vlc(VlcTable<IntWrap> &table);
+template MacroblockType BitReader::read_vlc(VlcTable<MacroblockType> &table);
+template RunLevel BitReader::read_vlc(VlcTable<RunLevel> &table);

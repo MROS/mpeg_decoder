@@ -216,8 +216,15 @@ void Decoder::slice() {
 void Decoder::macroblock() {
 	while(this->bit_reader.peek_bits(11) == 15) {
 		this->bit_reader.eat_bits(11);
+		cout << endl << "###### 讀取 macroblock stuffing" << endl;
 	}
 	while(this->bit_reader.peek_bits(11) == 8) {
 		this->bit_reader.eat_bits(11);
+		cout << endl << "###### 讀取 macroblock escape" << endl;
 	}
+
+	cout << endl << "###### 繼續讀取 macroblock" << endl;
+
+	IntWrap macroblock_address_increment = this->bit_reader.read_vlc(this->bit_reader.macroblock_addr);
+	cout << "macroblock_address_increment: " << macroblock_address_increment.value << endl;
 }

@@ -38,12 +38,10 @@ public:
 
 template <typename T>
 class VlcTable {
-private:
+public:
 	int min_len, max_len;
 	std::vector<std::vector<T>> table;
 	std::vector<int> min_code;
-
-public:
 	VlcTable() {};
 	explicit VlcTable(std::string filename);
 };
@@ -82,27 +80,26 @@ VlcTable<T>::VlcTable(std::string filename) {
 		}
 	});
 
-	VlcTable table;
-	table.min_len = codes[0].key.length();
-	table.max_len = codes[codes.size() - 1].key.length();
+	this->min_len = codes[0].key.length();
+	this->max_len = codes[codes.size() - 1].key.length();
 
-	std::cout << "min_len: " << table.min_len << ", max_len: " << table.max_len << std::endl;
+	std::cout << "min_len: " << this->min_len << ", max_len: " << this->max_len << std::endl;
 
-	table.table = std::vector<std::vector<T>>(table.max_len + 1);
-	table.min_code = std::vector<int>(table.max_len + 1);
+	this->table = std::vector<std::vector<T>>(this->max_len + 1);
+	this->min_code = std::vector<int>(this->max_len + 1);
 
 
 	for (auto i = 0; i < codes.size(); i++) {
 		int len = codes[i].key.length();
-		std::cout << "len: " << len << ", key: " << codes[i].key << std::endl;
-		std::cout << "value length: " << codes[i].value.size() << std::endl;
+//		std::cout << "len: " << len << ", key: " << codes[i].key << std::endl;
+//		std::cout << "value length: " << codes[i].value.size() << std::endl;
 		int prev_len = codes[i - 1].key.length();
 		if (i == 0 || len > prev_len) {
-			table.min_code[len] = std::stoi(codes[i].key, nullptr, 2);
+			this->min_code[len] = std::stoi(codes[i].key, nullptr, 2);
 		}
 		T v;
 		v.from_vector(codes[i].value);
-		table.table[len].push_back(v);
+		this->table[len].push_back(v);
 	}
 }
 
@@ -112,10 +109,11 @@ private:
 	uint bit_head;      // bit 層級的讀寫頭，取值在 0 ~ 7
 	char current_byte;
 
+public:
 	VlcTable<MacroblockType> b_macroblock_type, intra_macroblock_type, p_macroblock_type;
 	VlcTable<IntWrap> dct_dc_size_chrominance, dct_dc_size_luminance, motion_vector, coded_block_pattern, macroblock_addr;
 	VlcTable<RunLevel> run_level;
-public:
+
 	explicit BitReader(std::ifstream &f);
 
 	BitReader();
@@ -131,7 +129,7 @@ public:
 	void next_start_code();
 
 	template <typename T>
-	T read_vlc(VlcTable<T> table);
+	T read_vlc(VlcTable<T> &table);
 };
 
 
