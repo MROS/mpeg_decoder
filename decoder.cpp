@@ -144,7 +144,7 @@ void Decoder::picture() {
 
 	uint32_t temporal_reference = this->bit_reader.eat_bits(10);
 	cout << "temporal_reference: " << temporal_reference << endl;
-	uint32_t picture_coding_type = this->bit_reader.eat_bits(3);
+	this->picture_coding_type = this->bit_reader.eat_bits(3);
 	cout << "picture_coding_type: " << picture_coding_type << endl;
 	uint32_t vbv_delay = this->bit_reader.eat_bits(16);
 	cout << "vbv_delay: " << vbv_delay << endl;
@@ -222,9 +222,41 @@ void Decoder::macroblock() {
 		this->bit_reader.eat_bits(11);
 		cout << endl << "###### 讀取 macroblock escape" << endl;
 	}
-
 	cout << endl << "###### 繼續讀取 macroblock" << endl;
 
 	IntWrap macroblock_address_increment = this->bit_reader.read_vlc(this->bit_reader.macroblock_addr);
 	cout << "macroblock_address_increment: " << macroblock_address_increment.value << endl;
+
+	// TODO: 支援 p 跟 b 幀
+	MacroblockType macroblock_type = this->bit_reader.read_vlc(this->bit_reader.intra_macroblock_type);
+	if (macroblock_type.quant) {
+		uint32_t quantizer_scale = this->bit_reader.eat_bits(5);
+		cout << "quantizer_scale: " << quantizer_scale << endl;
+	}
+	if (macroblock_type.motion_forward) {
+		// TODO
+		throw "尚未處理 motion_forward"s;
+	}
+	if (macroblock_type.motion_backward) {
+		// TODO
+		throw "尚未處理 motion_backward"s;
+	}
+	if (macroblock_type.pattern) {
+		IntWrap coded_block_pattern = this->bit_reader.read_vlc(this->bit_reader.coded_block_pattern);
+		cout << "coded_block_pattern: " << coded_block_pattern.value << endl;
+	}
+	for (int i = 0; i < 6; i++) {
+		this->block(i);
+	}
+
+	if (this->picture_coding_type == 1) {
+		uint32_t end_of_macroblock = this->bit_reader.eat_bits(1);
+		if (end_of_macroblock != 1) {
+			throw "end of macroblock != 1"s;
+		}
+	}
+
+}
+
+void Decoder::block(int i) {
 }

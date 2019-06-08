@@ -2,12 +2,14 @@
 #define MPEG_DECODER_DECODER_H
 
 #include <fstream>
+#include <stdint.h>
 
 #include "bit_reader.h"
 
 class Decoder {
 private:
 	BitReader bit_reader;
+	uint32_t picture_coding_type;
 public:
 	Decoder(std::ifstream &f): bit_reader(f) {};
 	void play();
@@ -21,6 +23,9 @@ public:
 	void slice();
 
 	void macroblock();
+
+	void block(int i);
+
 };
 
 #endif //MPEG_DECODER_DECODER_H
