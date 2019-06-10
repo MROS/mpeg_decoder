@@ -26,15 +26,15 @@ const uint32_t system_start_code_max = 0x000001FF;
 
 
 void Decoder::start() {
-	auto image_names = dir_list("../images");
-	for (int i = 2; i < image_names.size(); i++) {
-		string image_name = image_names[i];
-		sf::Image image;
-		if (!image.loadFromFile("../images/" + image_name)) {
-			cout << "無法開啓檔案: " << image_name << endl;
-		}
-		this->image_queue->push(make_shared<sf::Image>(image));
-	}
+//	auto image_names = dir_list("../images");
+//	for (int i = 2; i < image_names.size(); i++) {
+//		string image_name = image_names[i];
+//		sf::Image image;
+//		if (!image.loadFromFile("../images/" + image_name)) {
+//			cout << "無法開啓檔案: " << image_name << endl;
+//		}
+//		this->image_queue->push(make_shared<sf::Image>(image));
+//	}
 	this->video_sequence();
 }
 

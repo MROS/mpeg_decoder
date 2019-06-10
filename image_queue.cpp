@@ -13,7 +13,7 @@ shared_ptr<sf::Image> ImageQueue::pop() {
 	return ret;
 }
 
-void ImageQueue::push(shared_ptr<sf::Image> image) {
+void ImageQueue::push(const shared_ptr<sf::Image>& image) {
 	lock_guard<mutex> lock(this->mutex_lock);
 	this->q.push(image);
 	if (this->q.empty()) {
