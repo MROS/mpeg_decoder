@@ -1,6 +1,8 @@
 #include "util.h"
 #include <vector>
 #include <string>
+#include <dirent.h>
+#include <algorithm>
 
 using namespace std;
 
@@ -20,4 +22,20 @@ vector<string> split(const string& str) {
 
 	}
 	return ret;
+}
+vector<string> dir_list(string dir_name) {
+	vector<string> ret;
+	DIR *dir;
+	struct dirent *ent;
+	if ((dir = opendir(dir_name.c_str())) != nullptr) {
+		while ((ent = readdir(dir)) != nullptr) {
+			ret.emplace_back(ent->d_name);
+		}
+		closedir(dir);
+		sort(ret.begin(), ret.end());
+		return ret;
+	} else {
+		perror("");
+		throw "can't open dir";
+	}
 }

@@ -3,9 +3,9 @@
 
 #include <string>
 #include <vector>
+#include <memory>
+#include "image_queue.h"
 
-std::vector<std::string> dir_list(std::string dir_name);
+void play_video(std::shared_ptr<ImageQueue> image_queue);
 
-void play_images();
-
-#endif //MPEG_DECODER_PLAY_VIDEO_H
+#endif

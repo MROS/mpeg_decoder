@@ -1,51 +1,34 @@
 #include <cstdio>
 #include <string>
 #include <iostream>
-#include <dirent.h>
 #include <algorithm>
 #include <thread>
+#include <memory>
 #include <chrono>
 #include <SFML/Graphics.hpp>
 
 #include "play_video.h"
+#include "image_queue.h"
+#include <SFML/Graphics/Image.hpp>
 
 using namespace std;
 
-vector<string> dir_list(string dir_name) {
-	vector<string> ret;
-	DIR *dir;
-	struct dirent *ent;
-	if ((dir = opendir(dir_name.c_str())) != nullptr) {
-		while ((ent = readdir(dir)) != nullptr) {
-			ret.emplace_back(ent->d_name);
-		}
-		closedir(dir);
-		sort(ret.begin(), ret.end());
-		return ret;
-	} else {
-		perror("");
-		throw "can't open dir";
-	}
-}
 
-void play_images() {
+void play_video(shared_ptr<ImageQueue> image_queue) {
 	sf::RenderWindow window(sf::VideoMode(640, 360), "SFML works!");
 
-	auto images = dir_list("../images");
-
-	for (int i = 2; i < images.size() && window.isOpen(); i++) {
+	while (true) {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed) {
 				window.close();
+				return;
 			}
 		}
 
-		string image = images[i];
+		shared_ptr<sf::Image> image = image_queue->pop();
 		sf::Texture texture;
-		if (!texture.loadFromFile("../images/" + image)) {
-			cout << "無法開啓檔案: " << image << endl;
-		}
+		texture.loadFromImage(*image);
 		sf::Sprite sprite(texture);
 
 		window.clear();
@@ -54,7 +37,6 @@ void play_images() {
 
 		this_thread::sleep_for(chrono::milliseconds(1000 / 24));
 	}
-	window.close();
 
-	return;
 }
+
