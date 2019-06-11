@@ -36,6 +36,6 @@ vector<string> dir_list(string dir_name) {
 		return ret;
 	} else {
 		perror("");
-		throw "can't open dir";
+		throw "can't open dir"s;
 	}
 }
