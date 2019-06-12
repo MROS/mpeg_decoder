@@ -44,10 +44,6 @@ static uint8_t default_non_intra_quantizer_matrix[8][8] = {
 		{16, 16, 16, 16, 16, 16, 16, 16},
 };
 
-struct Block {
-
-};
-
 struct Macroblock {
 	uint32_t address_increment;
 	uint32_t macroblock_type;
@@ -149,7 +145,7 @@ public:
 
 	void read_macroblock(Slice &slice);
 
-	void read_block(int i);
+	std::shared_ptr <int> read_block(int i, bool macroblock_intra, int picture_coding_type);
 
 };
 

@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <SFML/Graphics/Image.hpp>
+#include <cstring>
 #include "decoder.h"
 #include "util.h"
 #include "image_queue.h"
@@ -221,6 +222,7 @@ void Decoder::read_picture() {
 		}
 		this->bit_reader.next_start_code();
 	}
+	this->cur_picture = picture;
 	do {
 		this->read_slice();
 	} while(this->bit_reader.peek_bits(32) <= slice_start_code_max && this->bit_reader.peek_bits(32) >= slice_start_code_min);
@@ -322,10 +324,12 @@ void Decoder::read_macroblock(Slice &slice) {
 		}
 	}
 
-
 	for (int i = 0; i < 6; i++) {
-		this->read_block(i);
+		if (pattern_code[i]) {
+			this->read_block(i, macroblock_type.intra, this->cur_picture->picture_coding_type);
+		}
 	}
+	exit(0);
 
 	if (this->picture_coding_type == 1) {
 		uint32_t end_of_macroblock = this->bit_reader.eat_bits(1);
@@ -336,5 +340,61 @@ void Decoder::read_macroblock(Slice &slice) {
 
 }
 
-void Decoder::read_block(int i) {
+shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_coding_type) {
+	cout << endl << "###### 讀取 block " << i << endl;
+
+	int *dct_zz = new int[64];
+    memset(dct_zz, 0, 64 * sizeof(int));
+	int index = 0;
+
+	if (macroblock_intra) {
+		// 取得 dct_dc_size
+		uint32_t dct_dc_size;
+		if (i < 4) {
+			dct_dc_size = this->bit_reader.read_vlc(this->bit_reader.dct_dc_size_luminance).value;
+			cout << "dct_dc_size_luminance: " << dct_dc_size << endl;
+		} else {
+			dct_dc_size = this->bit_reader.read_vlc(this->bit_reader.dct_dc_size_chrominance).value;
+			cout << "dct_dc_size_chrominance: " << dct_dc_size << endl;
+		}
+
+		// 根據 size 計算 dct_zz[0]
+		if (dct_dc_size == 0) {
+			dct_zz[0] = 0;
+		} else {
+			uint32_t dct_dc_differential = this->bit_reader.eat_bits(dct_dc_size);
+			cout << "dct_dc_differential: " << dct_dc_differential << endl;
+			if (dct_dc_differential & (1 << (dct_dc_size - 1))) {
+				dct_zz[0] = dct_dc_differential;
+			} else {
+				dct_zz[0] = (-1 << (dct_dc_size)) | (dct_dc_differential + 1);
+			}
+		}
+		cout << "dct_zz[0]: " << dct_zz[0] << endl;
+	} else {
+        RunLevel run_level = this->bit_reader.read_vlc(this->bit_reader.run_level);
+        index = run_level.run;
+        uint32_t s = this->bit_reader.eat_bits(1);
+        if (s == 0) { dct_zz[index] = run_level.level; }
+        else if (s == 1) { dct_zz[index] = -run_level.level; }
+	}
+	if (picture_coding_type != 4) {
+		while (this->bit_reader.peek_bits(2) != 0b10) {
+			RunLevel run_level = this->bit_reader.read_vlc(this->bit_reader.run_level);
+			index = index + run_level.run + 1;
+			if (index > 63) { throw "dct_coeff_next 不合理 index"s; }
+			uint32_t s = this->bit_reader.eat_bits(1);
+			if (s == 0) { dct_zz[index] = run_level.level; }
+			else if (s == 1) { dct_zz[index] = -run_level.level; }
+		}
+		this->bit_reader.eat_bits(2);
+	}
+	for (int i = 0; i < 8; i++) {
+		for (int j = 0; j < 8; j++) {
+			cout << dct_zz[i * 8 + j] << " ";
+		}
+		cout << endl;
+	}
+
+	return shared_ptr<int>(dct_zz);
 }

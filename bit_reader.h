@@ -119,6 +119,7 @@ public:
 	BitReader();
 
 	uint32_t read_bits(uint length, bool eat);
+
 	// 只預看，不移動讀寫頭
 	uint32_t peek_bits(uint length);
 	// 讀取並移動
