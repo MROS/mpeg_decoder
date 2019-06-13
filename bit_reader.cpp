@@ -114,12 +114,27 @@ template MacroblockType BitReader::read_vlc(VlcTable<MacroblockType> &table);
 template RunLevel BitReader::read_vlc(VlcTable<RunLevel> &table);
 
 RunLevel BitReader::read_run_level(bool coeff_next) {
-	RunLevel ret = this->read_vlc(this->run_level);
-	// TODO: fixed length
-	if (ret.run == 0 && ret.level == 1 && coeff_next) { // 怪異規定。SPEC Table 2-B.5c NOTE2, 3
-		this->eat_bits(1);
+	if (this->peek_bits(6) == 1) { // fixed length ，見 Table 2-B.5g
+		this->eat_bits(6);
+		RunLevel ret;
+		ret.run = this->eat_bits(6);
+		int tmp = this->eat_bits(8);
+		if (tmp == 0b00000000) {
+			ret.level = this->eat_bits(8);
+		} else if (tmp == 0b10000000) {
+			ret.level = this->eat_bits(8) - 256;
+		} else {
+			ret.level = tmp;
+		}
+		return ret;
+	} else {
+		RunLevel ret = this->read_vlc(this->run_level);
+		// TODO: fixed length
+		if (ret.run == 0 && ret.level == 1 && coeff_next) { // 怪異規定。Table 2-B.5c NOTE2, 3
+			this->eat_bits(1);
+		}
+		uint32_t s = this->eat_bits(1);
+		if (s == 1) { ret.level = -ret.level; }
+		return ret;
 	}
-	uint32_t s = this->eat_bits(1);
-	if (s == 1) { ret.level = -ret.level; }
-	return ret;
 }

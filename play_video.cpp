@@ -15,7 +15,6 @@ using namespace std;
 
 
 void play_video(shared_ptr<ImageQueue> image_queue) {
-	// TODO: 根據圖片大小改變視窗大小
 	sf::RenderWindow window(sf::VideoMode(640, 360), "SFML works!");
 
 	while (true) {
@@ -28,6 +27,7 @@ void play_video(shared_ptr<ImageQueue> image_queue) {
 		}
 
 		shared_ptr<sf::Image> image = image_queue->pop();
+		// window.setSize(image->getSize());
 		sf::Texture texture;
 		texture.loadFromImage(*image);
 		sf::Sprite sprite(texture);

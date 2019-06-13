@@ -82,6 +82,7 @@ struct Picture {
 	std::vector<uint32_t> user_data;
 
 	std::vector<std::shared_ptr<Slice>> slices;
+	sf::Image image;
 };
 
 struct GroupOfPictures {
@@ -127,14 +128,20 @@ private:
 	std::shared_ptr<Picture> cur_picture; // cur 前綴代表 current。
 
 
-	uint32_t cur_quantizer_scale;
+	int cur_quantizer_scale;
 	int past_intra_address;
 	int previous_macroblock_address;
 	int cur_macroblock_address;
 
+	int cur_mb_width;
+
 	int dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past;
 
 	uint32_t picture_coding_type;
+
+	int macroblock_counter;
+	int picture_counter;
+
     std::shared_ptr<ImageQueue> image_queue;
 public:
 	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue) {};
@@ -150,7 +157,7 @@ public:
 
 	void read_macroblock(Slice &slice);
 
-	void decode_block(int (*dest)[8], std::shared_ptr<int> dct_zz, int index);
+	void decode_block(int dest[8][8], std::shared_ptr<int> dct_zz, int index);
 
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra, int picture_coding_type);
 

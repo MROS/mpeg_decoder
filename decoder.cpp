@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <iostream>
+#include <fstream>
 #include <memory>
 #include <SFML/Graphics/Image.hpp>
 #include <cstring>
@@ -30,17 +31,7 @@ int sign(int x) {
 	return (x > 0) ? 1 : ((x < 0) ? -1 : 0);
 }
 
-
 void Decoder::start() {
-//	auto image_names = dir_list("../images");
-//	for (int i = 2; i < image_names.size(); i++) {
-//		string image_name = image_names[i];
-//		sf::Image image;
-//		if (!image.loadFromFile("../images/" + image_name)) {
-//			cout << "無法開啓檔案: " << image_name << endl;
-//		}
-//		this->image_queue->push(make_shared<sf::Image>(image));
-//	}
 	this->video_sequence();
 }
 
@@ -51,6 +42,8 @@ void Decoder::video_sequence() {
 			this->read_group_of_pictures();
 		} while (this->bit_reader.peek_bits(32) == group_start_code);
 	} while (this->bit_reader.peek_bits(32) == sequence_header_code);
+	cout << "sequence 結束" << endl;
+	exit(0);
 }
 
 void Decoder::read_sequence_header() {
@@ -169,6 +162,27 @@ void Decoder::read_group_of_pictures() {
 	do {
 		this->read_picture();
 	} while (this->bit_reader.peek_bits(32) == picture_start_code);
+	picture_counter++;
+	this->image_queue->push(make_shared<sf::Image>(cur_picture->image));
+
+	ofstream fout;
+	fout.open("dp.ppm");
+	int h = sequence_header.vertical_size;
+	int w = sequence_header.horizontal_size;
+	fout << "P6\n" << w << " " << h << "\n255\n";
+	for (int i = 0; i < h; i++) {
+		for (int j = 0; j < w; j++) {
+			auto pixel = cur_picture->image.getPixel(i, j);
+			fout.write((char*)&pixel.r, 1);
+			fout.write((char*)&pixel.g, 1);
+			fout.write((char*)&pixel.b, 1);
+		}
+	}
+	fout.close();
+
+    cout << "Press enter to continue ...";
+    cin.get();
+     
 }
 
 void Decoder::read_picture() {
@@ -178,6 +192,7 @@ void Decoder::read_picture() {
 	cout << endl << "###### 讀取 picture start code" << endl;
 
 	auto picture = make_shared<Picture>();
+	picture->image.create(sequence_header.horizontal_size, sequence_header.vertical_size);
 
 	picture->temporal_reference = this->bit_reader.eat_bits(10);
 	cout << "temporal_reference: " << picture->temporal_reference << endl;
@@ -251,8 +266,8 @@ void Decoder::read_slice() {
 	}
 	cout << "vertical_position: " << slice.vertical_position << endl;
 
-	int mb_width = (this->sequence_header.horizontal_size + 15) / 16;
-	this->previous_macroblock_address = (slice.vertical_position - 1) * mb_width - 1;
+	cur_mb_width = (this->sequence_header.horizontal_size + 15) / 16;
+	this->previous_macroblock_address = (slice.vertical_position - 1) * cur_mb_width - 1;
 	cout << "reset previous_macroblock_address: " << this->previous_macroblock_address << endl;
 
 
@@ -267,22 +282,20 @@ void Decoder::read_slice() {
 	}
 	this->bit_reader.eat_bits(1);
 
+	macroblock_counter = 0;
 	do {
 		this->read_macroblock(slice);
 	} while(this->bit_reader.peek_bits(23) != 0);
 	this->bit_reader.next_start_code();
 }
 
-void Decoder::decode_block(int (*dct_recon)[8], shared_ptr<int> dct_zz, int index) {
-
-//	int dct_recon[8][8];
+void Decoder::decode_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index) {
 	auto &quant = this->sequence_header.intra_quantizer_matrix;
 	for (int m = 0; m < 8; m++) {
 		for (int n = 0; n < 8; n++) {
 			int i = scan[m][n];
 			dct_recon[m][n] = (2 * (&*dct_zz)[i] * this->cur_quantizer_scale * (int)quant[m][n]) / 16;
 			if ((dct_recon[m][n] & 1) == 0) {
-				// NOTE: sign????
 				dct_recon[m][n] = dct_recon[m][n] - sign(dct_recon[m][n]);
 			}
 			if (dct_recon[m][n] > 2047) {
@@ -292,17 +305,30 @@ void Decoder::decode_block(int (*dct_recon)[8], shared_ptr<int> dct_zz, int inde
 			}
 		}
 	}
-	if (index == 1 || index == 2 || index == 3) {  // 除了第一個之外的 Y block
-		dct_recon[0][0] = dct_dc_y_past + (&*dct_zz)[0] * 8;
+
+	int *dct_dc_past;
+	if (index < 4) {
+		dct_dc_past = &dct_dc_y_past;
+	} else if (index == 4) {
+		dct_dc_past = &dct_dc_cb_past;
+	} else {
+		dct_dc_past = &dct_dc_cr_past;
+	}
+
+	if (index == 1 || index == 2 || index == 3) {  // 非第一個的 block
+		dct_recon[0][0] = *dct_dc_past + (&*dct_zz)[0] * 8;
 	} else { // 第一個 Y block, Cb block, Cr block
+
 		dct_recon[0][0] = (&*dct_zz)[0] * 8;
+		cout << "dct_recon[0][0]: " << dct_recon[0][0] << endl;
+
 		if (this->cur_macroblock_address - this->past_intra_address > 1) {
 			dct_recon[0][0] = 128 * 8 + dct_recon[0][0];
 		} else {
-			dct_recon[0][0] = dct_dc_y_past + dct_recon[0][0];
+			dct_recon[0][0] = *dct_dc_past + dct_recon[0][0];
 		}
 	}
-	dct_dc_y_past = dct_recon[0][0];
+	*dct_dc_past = dct_recon[0][0];
 }
 
 void Decoder::read_macroblock(Slice &slice) {
@@ -311,14 +337,15 @@ void Decoder::read_macroblock(Slice &slice) {
 		cout << endl << "###### 讀取 macroblock stuffing" << endl;
 	}
 
-
 	int escape_count = 0;
 	while(this->bit_reader.peek_bits(11) == 8) {
 		this->bit_reader.eat_bits(11);
 		cout << endl << "###### 讀取 macroblock escape" << endl;
 		escape_count += 1;
 	}
-	cout << endl << "###### 繼續讀取 macroblock" << endl;
+	cout << endl << "###### picture: " << picture_counter << endl;
+	cout << endl << "###### 繼續讀取 macroblock: " << macroblock_counter << endl;
+	macroblock_counter++;
 
 	int macroblock_address_increment = this->bit_reader.read_vlc(this->bit_reader.macroblock_addr).value;
 	cout << "macroblock_address_increment: " << macroblock_address_increment << endl;
@@ -368,34 +395,47 @@ void Decoder::read_macroblock(Slice &slice) {
 		for (int i = 0; i < 6; i++) {
 			pattern_code[i] = true;
 		}
-		int block[6][8][8];
+		int blocks[6][8][8];
 		for (int i = 0; i < 6; i++) {
 			if (pattern_code[i]) {
 				shared_ptr<int> dct_zz = this->read_block(i, macroblock_type.intra, this->cur_picture->picture_coding_type);
 
-				decode_block(block[i], dct_zz, i);
-				cout << "recon: " << endl;
-				for (int j = 0; j < 8; j++) {
-					for (int k = 0; k < 8; k++) {
-						cout << block[i][j][k] << " ";
-					}
-					cout << endl;
-				}
+				decode_block(blocks[i], dct_zz, i);
+				// cout << "recon: " << endl;
+				// for (int j = 0; j < 8; j++) {
+				// 	for (int k = 0; k < 8; k++) {
+				// 		cout << blocks[i][j][k] << " ";
+				// 	}
+				// 	cout << endl;
+				// }
 
 				double after_idct[8][8];
-				idct(after_idct, block[i]);
-				cout << "after_idct: " << endl;
-				for (int j = 0; j < 8; j++) {
-					for (int k = 0; k < 8; k++) {
-						cout << after_idct[j][k] << " ";
-					}
-					cout << endl;
-				}
+				idct(after_idct, blocks[i]);
+				// cout << "after_idct: " << endl;
+				// for (int j = 0; j < 8; j++) {
+				// 	for (int k = 0; k < 8; k++) {
+				// 		cout << after_idct[j][k] << " ";
+				// 	}
+				// 	cout << endl;
+				// }
 
 			}
 		}
 		this->past_intra_address = this->cur_macroblock_address;
-		exit(0);
+
+		sf::Color dest[16][16];
+		merge_blocks(dest, blocks);
+
+		int mb_row = cur_macroblock_address / cur_mb_width;
+		int mb_column = cur_macroblock_address % cur_mb_width;
+		for (int i = 0; i < 16; i++) {
+			for (int j = 0; j < 16; j++) {
+				// cout << (int)dest[i][j].b << " ";
+				cur_picture->image.setPixel(mb_row + i, mb_column + j, dest[i][j]);
+			}
+			// cout << endl;
+		}
+		// exit(0);
 	} else {
 		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
 		this->dct_dc_y_past = 1024;
@@ -403,7 +443,6 @@ void Decoder::read_macroblock(Slice &slice) {
 		this->dct_dc_cr_past = 1024;
 		throw "尚未支持 non intra"s;
 	}
-
 
 	if (this->picture_coding_type == 1) {
 		uint32_t end_of_macroblock = this->bit_reader.eat_bits(1);
@@ -458,12 +497,11 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_co
 		}
 		this->bit_reader.eat_bits(2);
 	}
-	for (int i = 0; i < 8; i++) {
-		for (int j = 0; j < 8; j++) {
-			cout << dct_zz[i * 8 + j] << " ";
-		}
-		cout << endl;
-	}
-
+	// for (int i = 0; i < 8; i++) {
+	// 	for (int j = 0; j < 8; j++) {
+	// 		cout << dct_zz[i * 8 + j] << " ";
+	// 	}
+	// 	cout << endl;
+	// }
 	return shared_ptr<int>(dct_zz);
 }
