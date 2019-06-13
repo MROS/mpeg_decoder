@@ -26,6 +26,10 @@ const uint32_t group_start_code = 0x000001B8;
 const uint32_t system_start_code_min = 0x000001B9;
 const uint32_t system_start_code_max = 0x000001FF;
 
+int sign(int x) {
+	return (x > 0) ? 1 : ((x < 0) ? -1 : 0);
+}
+
 
 void Decoder::start() {
 //	auto image_names = dir_list("../images");
@@ -233,6 +237,13 @@ void Decoder::read_slice() {
 		throw "slice 開頭不是 slice_start_code"s;
 	}
 	cout << endl << "###### 讀取 slice start code: " << endl;
+
+	// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past, past_intra_address
+	this->dct_dc_y_past = 1024;
+	this->dct_dc_cb_past = 1024;
+	this->dct_dc_cr_past = 1024;
+	this->past_intra_address = -2;
+
 	Slice slice;
 	slice.vertical_position = this->bit_reader.eat_bits(8);
 	if (slice.vertical_position > 0xAF) {
@@ -240,8 +251,13 @@ void Decoder::read_slice() {
 	}
 	cout << "vertical_position: " << slice.vertical_position << endl;
 
-	uint32_t quantizer_scale = this->bit_reader.eat_bits(5);
-	cout << "quantizer_scale: " << quantizer_scale << endl;
+	int mb_width = (this->sequence_header.horizontal_size + 15) / 16;
+	this->previous_macroblock_address = (slice.vertical_position - 1) * mb_width - 1;
+	cout << "reset previous_macroblock_address: " << this->previous_macroblock_address << endl;
+
+
+	this->cur_quantizer_scale = this->bit_reader.eat_bits(5);
+	cout << "quantizer_scale: " << this->cur_quantizer_scale << endl;
 
 	while (this->bit_reader.peek_bits(1) == 1) {
 		throw "尚不支援 extra information slice"s;
@@ -255,6 +271,38 @@ void Decoder::read_slice() {
 		this->read_macroblock(slice);
 	} while(this->bit_reader.peek_bits(23) != 0);
 	this->bit_reader.next_start_code();
+}
+
+void Decoder::decode_block(int (*dct_recon)[8], shared_ptr<int> dct_zz, int index) {
+
+//	int dct_recon[8][8];
+	auto &quant = this->sequence_header.intra_quantizer_matrix;
+	for (int m = 0; m < 8; m++) {
+		for (int n = 0; n < 8; n++) {
+			int i = scan[m][n];
+			dct_recon[m][n] = (2 * (&*dct_zz)[i] * this->cur_quantizer_scale * (int)quant[m][n]) / 16;
+			if ((dct_recon[m][n] & 1) == 0) {
+				// NOTE: sign????
+				dct_recon[m][n] = dct_recon[m][n] - sign(dct_recon[m][n]);
+			}
+			if (dct_recon[m][n] > 2047) {
+				dct_recon[m][n] = 2047;
+			} else if (dct_recon[m][n] < -2048) {
+				dct_recon[m][n] = -2048;
+			}
+		}
+	}
+	if (index == 1 || index == 2 || index == 3) {  // 除了第一個之外的 Y block
+		dct_recon[0][0] = dct_dc_y_past + (&*dct_zz)[0] * 8;
+	} else { // 第一個 Y block, Cb block, Cr block
+		dct_recon[0][0] = (&*dct_zz)[0] * 8;
+		if (this->cur_macroblock_address - this->past_intra_address > 1) {
+			dct_recon[0][0] = 128 * 8 + dct_recon[0][0];
+		} else {
+			dct_recon[0][0] = dct_dc_y_past + dct_recon[0][0];
+		}
+	}
+	dct_dc_y_past = dct_recon[0][0];
 }
 
 void Decoder::read_macroblock(Slice &slice) {
@@ -272,17 +320,15 @@ void Decoder::read_macroblock(Slice &slice) {
 	}
 	cout << endl << "###### 繼續讀取 macroblock" << endl;
 
-	IntWrap macroblock_address_increment = this->bit_reader.read_vlc(this->bit_reader.macroblock_addr);
-	cout << "macroblock_address_increment: " << macroblock_address_increment.value << endl;
+	int macroblock_address_increment = this->bit_reader.read_vlc(this->bit_reader.macroblock_addr).value;
+	cout << "macroblock_address_increment: " << macroblock_address_increment << endl;
 
-	int mb_width = (this->sequence_header.horizontal_size + 15) / 16;
-	int previous_macroblock_address = (slice.vertical_position - 1) * mb_width - 1;
-	cout << "previous_macroblock_address: " << previous_macroblock_address << endl;
-
-	uint32_t macroblock_address = previous_macroblock_address;
-	macroblock_address += escape_count * 33;
-	macroblock_address += macroblock_address_increment.value;
-	cout << "macroblock_address: " << macroblock_address << endl;
+	// NOTE: previous_macroblock_address 可拿掉
+	this->cur_macroblock_address = this->previous_macroblock_address;
+	this->cur_macroblock_address += escape_count * 33;
+	this->cur_macroblock_address += macroblock_address_increment;
+	this->previous_macroblock_address = this->cur_macroblock_address;
+	cout << "macroblock_address: " << this->cur_macroblock_address << endl;
 
 
 	// TODO: 支援 p 跟 b 幀
@@ -294,8 +340,8 @@ void Decoder::read_macroblock(Slice &slice) {
 	cout << "macroblock_intra: " << macroblock_type.intra << endl;
 
 	if (macroblock_type.quant) {
-		uint32_t quantizer_scale = this->bit_reader.eat_bits(5);
-		cout << "quantizer_scale: " << quantizer_scale << endl;
+		this->cur_quantizer_scale = this->bit_reader.eat_bits(5);
+		cout << "quantizer_scale: " << this->cur_quantizer_scale << endl;
 	}
 	if (macroblock_type.motion_forward) {
 		// TODO
@@ -322,14 +368,42 @@ void Decoder::read_macroblock(Slice &slice) {
 		for (int i = 0; i < 6; i++) {
 			pattern_code[i] = true;
 		}
+		int block[6][8][8];
+		for (int i = 0; i < 6; i++) {
+			if (pattern_code[i]) {
+				shared_ptr<int> dct_zz = this->read_block(i, macroblock_type.intra, this->cur_picture->picture_coding_type);
+
+				decode_block(block[i], dct_zz, i);
+				cout << "recon: " << endl;
+				for (int j = 0; j < 8; j++) {
+					for (int k = 0; k < 8; k++) {
+						cout << block[i][j][k] << " ";
+					}
+					cout << endl;
+				}
+
+				double after_idct[8][8];
+				idct(after_idct, block[i]);
+				cout << "after_idct: " << endl;
+				for (int j = 0; j < 8; j++) {
+					for (int k = 0; k < 8; k++) {
+						cout << after_idct[j][k] << " ";
+					}
+					cout << endl;
+				}
+
+			}
+		}
+		this->past_intra_address = this->cur_macroblock_address;
+		exit(0);
+	} else {
+		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
+		this->dct_dc_y_past = 1024;
+		this->dct_dc_cb_past = 1024;
+		this->dct_dc_cr_past = 1024;
+		throw "尚未支持 non intra"s;
 	}
 
-	for (int i = 0; i < 6; i++) {
-		if (pattern_code[i]) {
-			this->read_block(i, macroblock_type.intra, this->cur_picture->picture_coding_type);
-		}
-	}
-	exit(0);
 
 	if (this->picture_coding_type == 1) {
 		uint32_t end_of_macroblock = this->bit_reader.eat_bits(1);
@@ -337,7 +411,6 @@ void Decoder::read_macroblock(Slice &slice) {
 			throw "end of macroblock != 1"s;
 		}
 	}
-
 }
 
 shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_coding_type) {
@@ -372,20 +445,16 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_co
 		}
 		cout << "dct_zz[0]: " << dct_zz[0] << endl;
 	} else {
-        RunLevel run_level = this->bit_reader.read_vlc(this->bit_reader.run_level);
+        RunLevel run_level = this->bit_reader.read_run_level(false);
         index = run_level.run;
-        uint32_t s = this->bit_reader.eat_bits(1);
-        if (s == 0) { dct_zz[index] = run_level.level; }
-        else if (s == 1) { dct_zz[index] = -run_level.level; }
+		dct_zz[index] = run_level.level;
 	}
 	if (picture_coding_type != 4) {
 		while (this->bit_reader.peek_bits(2) != 0b10) {
-			RunLevel run_level = this->bit_reader.read_vlc(this->bit_reader.run_level);
+			RunLevel run_level = this->bit_reader.read_run_level(true);
 			index = index + run_level.run + 1;
 			if (index > 63) { throw "dct_coeff_next 不合理 index"s; }
-			uint32_t s = this->bit_reader.eat_bits(1);
-			if (s == 0) { dct_zz[index] = run_level.level; }
-			else if (s == 1) { dct_zz[index] = -run_level.level; }
+			dct_zz[index] = run_level.level;
 		}
 		this->bit_reader.eat_bits(2);
 	}

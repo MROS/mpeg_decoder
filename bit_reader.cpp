@@ -112,3 +112,14 @@ T BitReader::read_vlc(VlcTable<T> &table) {
 template IntWrap BitReader::read_vlc(VlcTable<IntWrap> &table);
 template MacroblockType BitReader::read_vlc(VlcTable<MacroblockType> &table);
 template RunLevel BitReader::read_vlc(VlcTable<RunLevel> &table);
+
+RunLevel BitReader::read_run_level(bool coeff_next) {
+	RunLevel ret = this->read_vlc(this->run_level);
+	// TODO: fixed length
+	if (ret.run == 0 && ret.level == 1 && coeff_next) { // 怪異規定。SPEC Table 2-B.5c NOTE2, 3
+		this->eat_bits(1);
+	}
+	uint32_t s = this->eat_bits(1);
+	if (s == 1) { ret.level = -ret.level; }
+	return ret;
+}

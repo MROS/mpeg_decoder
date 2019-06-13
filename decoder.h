@@ -11,7 +11,7 @@
 #include "bit_reader.h"
 #include "image_queue.h"
 
-static uint8_t scan[8][8] = {
+static const int scan[8][8] = {
 		{ 0,  1,  5,  6, 14, 15, 27, 28},
 		{ 2,  4,  7, 13, 16, 26, 29, 42},
 		{ 3,  8, 12, 17, 25, 30, 41, 43},
@@ -22,7 +22,7 @@ static uint8_t scan[8][8] = {
 		{35, 36, 48, 49, 57, 58, 62, 63}
 };
 
-static uint8_t default_intra_quantizer_matrix[8][8] = {
+static const uint8_t default_intra_quantizer_matrix[8][8] = {
 		{8, 16, 19, 22, 26, 27, 29, 34},
 		{16, 16, 22, 24, 27, 29, 34, 37},
 		{19, 22, 26, 27, 29, 34, 34, 38},
@@ -33,7 +33,7 @@ static uint8_t default_intra_quantizer_matrix[8][8] = {
 		{27, 29, 35, 38, 46, 56, 69, 83}
 };
 
-static uint8_t default_non_intra_quantizer_matrix[8][8] = {
+static const uint8_t default_non_intra_quantizer_matrix[8][8] = {
 		{16, 16, 16, 16, 16, 16, 16, 16},
 		{16, 16, 16, 16, 16, 16, 16, 16},
 		{16, 16, 16, 16, 16, 16, 16, 16},
@@ -125,9 +125,14 @@ private:
 	SequenceHeader sequence_header;
 	GroupOfPictures group_of_pictures;
 	std::shared_ptr<Picture> cur_picture; // cur 前綴代表 current。
-//	Slice *cur_slice;
-//	Macroblock *cur_macroblock;
-//	Block *cur_block;
+
+
+	uint32_t cur_quantizer_scale;
+	int past_intra_address;
+	int previous_macroblock_address;
+	int cur_macroblock_address;
+
+	int dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past;
 
 	uint32_t picture_coding_type;
     std::shared_ptr<ImageQueue> image_queue;
@@ -144,6 +149,8 @@ public:
 	void read_slice();
 
 	void read_macroblock(Slice &slice);
+
+	void decode_block(int (*dest)[8], std::shared_ptr<int> dct_zz, int index);
 
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra, int picture_coding_type);
 

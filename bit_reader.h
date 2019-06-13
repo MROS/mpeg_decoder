@@ -131,6 +131,8 @@ public:
 
 	template <typename T>
 	T read_vlc(VlcTable<T> &table);
+
+	RunLevel read_run_level(bool dct_coeff_next);
 };
 
 
