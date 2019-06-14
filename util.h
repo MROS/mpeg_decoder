@@ -8,7 +8,7 @@
 std::vector<std::string> split(const std::string& str);
 std::vector<std::string> dir_list(std::string dir_name);
 
-void idct(double (*dest)[8], int (*source)[8]);
-void merge_blocks(sf::Color (*dest)[16], int source[6][8][8]);
+void idct(double dest[8][8], int source[8][8]);
+void merge_blocks(sf::Color dest[16][16], double source[6][8][8]);
 
 #endif

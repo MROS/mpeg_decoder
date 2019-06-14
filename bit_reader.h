@@ -64,7 +64,7 @@ VlcTable<T>::VlcTable(std::string filename) {
 		struct Code pair;
 		pair.key = ss[0];
 		std::vector<int> value;
-		for (auto i = 1; i < ss.size(); i++) {
+		for (auto i = 1; i < (int)ss.size(); i++) {
 			value.push_back(std::stoi(ss[i]));
 		}
         pair.value = value;
@@ -89,10 +89,8 @@ VlcTable<T>::VlcTable(std::string filename) {
 	this->min_code = std::vector<int>(this->max_len + 1);
 
 
-	for (auto i = 0; i < codes.size(); i++) {
+	for (auto i = 0; i < (int)codes.size(); i++) {
 		int len = codes[i].key.length();
-//		std::cout << "len: " << len << ", key: " << codes[i].key << std::endl;
-//		std::cout << "value length: " << codes[i].value.size() << std::endl;
 		int prev_len = codes[i - 1].key.length();
 		if (i == 0 || len > prev_len) {
 			this->min_code[len] = std::stoi(codes[i].key, nullptr, 2);
@@ -134,6 +132,5 @@ public:
 
 	RunLevel read_run_level(bool dct_coeff_next);
 };
-
 
 #endif

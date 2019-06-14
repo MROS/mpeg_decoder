@@ -121,6 +121,7 @@ struct SequenceHeader {
 class Decoder {
 private:
 	BitReader bit_reader;
+    std::shared_ptr<ImageQueue> image_queue;
 
 	// 以一個 group_of_pictures 爲單位緩存
 	SequenceHeader sequence_header;
@@ -130,7 +131,6 @@ private:
 
 	int cur_quantizer_scale;
 	int past_intra_address;
-	int previous_macroblock_address;
 	int cur_macroblock_address;
 
 	int cur_mb_width;
@@ -142,9 +142,8 @@ private:
 	int macroblock_counter;
 	int picture_counter;
 
-    std::shared_ptr<ImageQueue> image_queue;
 public:
-	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue) {};
+	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue), picture_counter(0) {};
 	void start();
 	void video_sequence();
 	void read_sequence_header();
@@ -155,9 +154,9 @@ public:
 
 	void read_slice();
 
-	void read_macroblock(Slice &slice);
+	void read_macroblock();
 
-	void decode_block(int dest[8][8], std::shared_ptr<int> dct_zz, int index);
+	void recon_block(int dest[8][8], std::shared_ptr<int> dct_zz, int index);
 
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra, int picture_coding_type);
 

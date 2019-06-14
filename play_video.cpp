@@ -15,7 +15,7 @@ using namespace std;
 
 
 void play_video(shared_ptr<ImageQueue> image_queue) {
-	sf::RenderWindow window(sf::VideoMode(640, 360), "SFML works!");
+	sf::RenderWindow window(sf::VideoMode(320, 240), "SFML works!");
 
 	while (true) {
 		sf::Event event;

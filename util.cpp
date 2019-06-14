@@ -3,6 +3,7 @@
 #include <string>
 #include <dirent.h>
 #include <algorithm>
+#include <iostream>
 #include <math.h>
 #include <SFML/Graphics/Color.hpp>
 
@@ -14,7 +15,7 @@ vector<string> split(const string& str) {
 	size_t pos;
 	size_t size = strs.size();
 
-	for (int i = 0; i < size; ++i) {
+	for (int i = 0; i < (int)size; ++i) {
 		pos = strs.find(" ", i);
 		if( pos < size) {
 			std::string s = strs.substr(i, pos - i);
@@ -52,12 +53,15 @@ double c(int i) {
 	}
 }
 
-// // TODO: cos 快取
-void idct(double (*dest)[8], int (*source)[8]) {
-	double cos_cache[200] = {};
-	for (int i = 0; i < 200; i++) {
-        cos_cache[i] = cos(i * M_PI / 16.0);
-    }
+void idct(double dest[8][8], int source[8][8]) {
+	static bool init = false;
+	static double cos_cache[200] = {};
+	if (!init) {
+		init = true;
+		for (int i = 0; i < 200; i++) {
+			cos_cache[i] = cos(i * M_PI / 16.0);
+		}
+	}
 	double tmp[8][8] = {};
 	double s[8][8] = {};
 
@@ -90,19 +94,27 @@ unsigned char chomp(double x) {
 	} else if (x < 0) {
 		return 0;
 	} else {
-		return (unsigned char) x;
+		return (unsigned char) round(x);
 	}
 }
 
-void merge_blocks(sf::Color (*dest)[16], int source[6][8][8]) {
+void merge_blocks(sf::Color dest[16][16], double source[6][8][8]) {
 	for (int i = 0; i < 16; i++) {
 		for (int j = 0; j < 16; j++) {
-			double Y = source[(i/8) * 2 + (j/8)][i % 8][j % 8];
-			double Cb = source[4][i / 2][j / 2];
-			double Cr = source[5][i / 2][j / 2];
-			dest[i][j].r = chomp(Y + 1.402*Cr + 128);
-			dest[i][j].g = chomp(Y - 0.34414*Cb - 0.71414*Cr + 128);
-			dest[i][j].b = chomp(Y + 1.772*Cb + 128);
+			double Y = chomp(source[(i/8) * 2 + (j/8)][i % 8][j % 8]);
+			double Cb = chomp(source[4][i / 2][j / 2]);
+			double Cr = chomp(source[5][i / 2][j / 2]);
+			// double R = Y + 1.28033 * Cb;
+            // double G = Y - 0.21482 * Cr - 0.38059 * Cb;
+            // double B = Y + 2.12798 * Cr;
+			// dest[i][j].r = chomp(R);
+			// dest[i][j].g = chomp(G);
+			// dest[i][j].b = chomp(B);
+			// 公式來源： http://softpixel.com/~cwright/programming/colorspace/yuv/
+			Cb-=128, Cr-=128;
+			dest[i][j].r = chomp(Y + 1.4075*Cr);
+			dest[i][j].g = chomp(Y - 0.3455*Cb - 0.7169*Cr);
+			dest[i][j].b = chomp(Y + 1.779*Cb);
 		}
 	}
 }
