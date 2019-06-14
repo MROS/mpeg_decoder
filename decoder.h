@@ -137,13 +137,11 @@ private:
 
 	int dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past;
 
-	uint32_t picture_coding_type;
-
-	int macroblock_counter;
 	int picture_counter;
+	int macroblock_counter;
 
 public:
-	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue), picture_counter(0) {};
+	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue), picture_counter(0), macroblock_counter(0) {};
 	void start();
 	void video_sequence();
 	void read_sequence_header();
@@ -158,7 +156,7 @@ public:
 
 	void recon_block(int dest[8][8], std::shared_ptr<int> dct_zz, int index);
 
-	std::shared_ptr <int> read_block(int i, bool macroblock_intra, int picture_coding_type);
+	std::shared_ptr <int> read_block(int i, bool macroblock_intra);
 
 };
 

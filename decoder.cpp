@@ -289,7 +289,6 @@ void Decoder::read_slice() {
 	macroblock_counter = 0;
 	do {
 		read_macroblock();
-		// return;
 	} while(bit_reader.peek_bits(23) != 0);
 	bit_reader.next_start_code();
 }
@@ -357,31 +356,59 @@ void Decoder::read_macroblock() {
 		for (int i = 0; i < 6; i++) {
 			pattern_code[i] = true;
 		}
-		int blocks[6][8][8];
-		double after_idct[6][8][8];
-		for (int i = 0; i < 6; i++) {
-			if (pattern_code[i]) {
-				shared_ptr<int> dct_zz = read_block(i, macroblock_type.intra, cur_picture->picture_coding_type);
+	}
 
-				recon_block(blocks[i], dct_zz, i);
-				idct(after_idct[i], blocks[i]);
-			}
+	int blocks[6][8][8];
+	double after_idct[6][8][8];
+	for (int i = 0; i < 6; i++) {
+		if (pattern_code[i]) {
+			// cout << "######## block: " << i << endl;
+			shared_ptr<int> dct_zz = read_block(i, macroblock_type.intra);
+			// cout << "dct_zz:" << endl;
+			// for (int j = 0; j < 8; j++) {
+			// 	for (int k = 0; k < 8; k++) {
+			// 		cout << (&*dct_zz)[j * 8 + k] << " ";
+			// 	}
+			// 	cout << endl;
+			// }
+
+			recon_block(blocks[i], dct_zz, i);
+
+			// cout << "recon:" << endl;
+			// for (int j = 0; j < 8; j++) {
+			// 	for (int k = 0; k < 8; k++) {
+			// 		cout << blocks[i][j][k] << " ";
+			// 	}
+			// 	cout << endl;
+			// }
+
+			idct(after_idct[i], blocks[i]);
+
+			// cout << "after idct:" << endl;
+			// for (int j = 0; j < 8; j++) {
+			// 	for (int k = 0; k < 8; k++) {
+			// 		cout << after_idct[i][j][k] << " ";
+			// 	}
+			// 	cout << endl;
+			// }
 		}
-		past_intra_address = cur_macroblock_address;
+	}
+	past_intra_address = cur_macroblock_address;
 
-		sf::Color dest[16][16];
-		merge_blocks(dest, after_idct);
+	sf::Color dest[16][16];
+	merge_blocks(dest, after_idct);
 
-		int mb_row = cur_macroblock_address / cur_mb_width;
-		int mb_column = cur_macroblock_address % cur_mb_width;
-		for (int i = 0; i < 16; i++) {
-			for (int j = 0; j < 16; j++) {
-				cur_picture->image.setPixel(mb_column * 16 + j, mb_row * 16 + i, dest[i][j]);
-			}
+	int mb_row = cur_macroblock_address / cur_mb_width;
+	int mb_column = cur_macroblock_address % cur_mb_width;
+	for (int i = 0; i < 16; i++) {
+		for (int j = 0; j < 16; j++) {
+			cur_picture->image.setPixel(mb_column * 16 + j, mb_row * 16 + i, dest[i][j]);
 		}
-		// return;
-		// exit(0);
-	} else {
+	}
+	// return;
+	// exit(0);
+
+	if (!macroblock_type.intra) {
 		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
 		dct_dc_y_past = 1024;
 		dct_dc_cb_past = 1024;
@@ -389,7 +416,7 @@ void Decoder::read_macroblock() {
 		throw "尚未支持 non intra"s;
 	}
 
-	if (picture_coding_type == 4) {
+	if (cur_picture->picture_coding_type == 4) {
 		uint32_t end_of_macroblock = bit_reader.eat_bits(1);
 		if (end_of_macroblock != 1) {
 			throw "end of macroblock != 1"s;
@@ -397,7 +424,7 @@ void Decoder::read_macroblock() {
 	}
 }
 
-shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_coding_type) {
+shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra) {
 	// cout << endl << "###### 讀取 block " << i << endl;
 
 	int *dct_zz = new int[64];
@@ -409,31 +436,30 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_co
 		uint32_t dct_dc_size;
 		if (i < 4) {
 			dct_dc_size = bit_reader.read_vlc(bit_reader.dct_dc_size_luminance).value;
-			// cout << "dct_dc_size_luminance: " << dct_dc_size << endl;
 		} else {
 			dct_dc_size = bit_reader.read_vlc(bit_reader.dct_dc_size_chrominance).value;
-			// cout << "dct_dc_size_chrominance: " << dct_dc_size << endl;
 		}
 
 		// 根據 size 計算 dct_zz[0]
+		cout << "dct_dc_size: " << dct_dc_size << endl;
 		if (dct_dc_size == 0) {
 			dct_zz[0] = 0;
 		} else {
 			uint32_t dct_dc_differential = bit_reader.eat_bits(dct_dc_size);
-			// cout << "dct_dc_differential: " << dct_dc_differential << endl;
 			if (dct_dc_differential & (1 << (dct_dc_size - 1))) {
 				dct_zz[0] = dct_dc_differential;
 			} else {
 				dct_zz[0] = (-1 << dct_dc_size) | (dct_dc_differential + 1);
 			}
+			cout << "dct_dc_differential: " << dct_dc_differential << endl;
+			cout << "dct_zz[0]: " << dct_zz[0] << endl;
 		}
-		// cout << "dct_zz[0]: " << dct_zz[0] << endl;
 	} else {
         RunLevel run_level = bit_reader.read_run_level(false);
         index = run_level.run;
 		dct_zz[index] = run_level.level;
 	}
-	if (picture_coding_type != 4) {
+	if (cur_picture->picture_coding_type != 4) {
 		while (bit_reader.peek_bits(2) != 0b10) {
 			RunLevel run_level = bit_reader.read_run_level(true);
 			index = index + run_level.run + 1;
@@ -442,16 +468,11 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra, int picture_co
 		}
 		bit_reader.eat_bits(2);
 	}
-	// for (int i = 0; i < 8; i++) {
-	// 	for (int j = 0; j < 8; j++) {
-	// 		cout << dct_zz[i * 8 + j] << " ";
-	// 	}
-	// 	cout << endl;
-	// }
 	return shared_ptr<int>(dct_zz);
 }
 
 void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index) {
+	// TODO: 調整量化矩陣
 	auto &quant = sequence_header.intra_quantizer_matrix;
 	for (int m = 0; m < 8; m++) {
 		for (int n = 0; n < 8; n++) {
@@ -480,10 +501,7 @@ void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index
 	if (index == 1 || index == 2 || index == 3) {  // 非第一個的 block
 		dct_recon[0][0] = *dct_dc_past + (&*dct_zz)[0] * 8;
 	} else { // 第一個 Y block, Cb block, Cr block
-
 		dct_recon[0][0] = (&*dct_zz)[0] * 8;
-		// cout << "dct_recon[0][0]: " << dct_recon[0][0] << endl;
-
 		if (cur_macroblock_address - past_intra_address > 1) {
 			dct_recon[0][0] = 128 * 8 + dct_recon[0][0];
 		} else {

@@ -99,6 +99,8 @@ unsigned char chomp(double x) {
 }
 
 void merge_blocks(sf::Color dest[16][16], double source[6][8][8]) {
+	int max = 0;
+	int min = 255;
 	for (int i = 0; i < 16; i++) {
 		for (int j = 0; j < 16; j++) {
 			double Y = chomp(source[(i/8) * 2 + (j/8)][i % 8][j % 8]);
@@ -115,6 +117,13 @@ void merge_blocks(sf::Color dest[16][16], double source[6][8][8]) {
 			dest[i][j].r = chomp(Y + 1.4075*Cr);
 			dest[i][j].g = chomp(Y - 0.3455*Cb - 0.7169*Cr);
 			dest[i][j].b = chomp(Y + 1.779*Cb);
+			int avg = (dest[i][j].r / 3 + dest[i][j].g / 3 + dest[i][j].b / 3);
+			max = (avg > max) ? avg: max;
+			min = (avg < min) ? avg: min;
 		}
 	}
+	// cout << "diff: " << max - min << endl;
+	// if ((max - min) > 100) {
+	// 	exit(0);
+	// }
 }

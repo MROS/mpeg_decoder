@@ -120,11 +120,13 @@ RunLevel BitReader::read_run_level(bool coeff_next) {
 		ret.run = this->eat_bits(6);
 		int tmp = this->eat_bits(8);
 		if (tmp == 0b00000000) {
+			// cout << "128 ~ 255" << endl;
 			ret.level = this->eat_bits(8);
 		} else if (tmp == 0b10000000) {
-			ret.level = this->eat_bits(8) - 256;
+			// cout << "-128 ~ -256" << endl;
+			ret.level = (int)this->eat_bits(8) - 256;
 		} else {
-			ret.level = tmp;
+			ret.level = tmp > 128 ? tmp - 256: tmp;
 		}
 		return ret;
 	} else {
