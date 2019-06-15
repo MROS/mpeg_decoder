@@ -351,7 +351,24 @@ void Decoder::read_macroblock() {
 			cur_macroblock.motion_vertical_forward_r = bit_reader.eat_bits(cur_picture->forward_r_size());
 			cout << "motion_vertical_forward_r: " << cur_macroblock.motion_vertical_forward_r << endl;
 		}
-		calculate_forward_motion_vector();
+		calculate_motion_vector(
+			cur_picture->forward_f(),
+			cur_macroblock.motion_vertical_forward_code,
+			cur_macroblock.motion_vertical_forward_r,
+			this->recon_down_for_prev,
+			this->recon_down_for,
+			this->cur_picture->full_pel_forward_vector,
+			this->down_for
+		);
+		calculate_motion_vector(
+			cur_picture->forward_f(),
+			cur_macroblock.motion_horizontal_forward_code,
+			cur_macroblock.motion_horizontal_forward_r,
+			this->recon_right_for_prev,
+			this->recon_right_for,
+			this->cur_picture->full_pel_forward_vector,
+			this->right_for
+		);
 	} else {
 		reset_forward_motion_vector();
 	}
@@ -587,77 +604,41 @@ void Decoder::merge_blocks(double source[6][8][8]) {
 	}
 }
 
-void Decoder::calculate_forward_motion_vector() {
-	int complement_horizontal_forward_r;
-	int complement_vertical_forward_r;
-	int forward_f = cur_picture->forward_f();
-	if (forward_f == 1 || cur_macroblock.motion_horizontal_forward_code == 0) {
-		complement_horizontal_forward_r = 0;
+
+void Decoder::calculate_motion_vector(int f, int code, int r, int &recon_prev, int &recon, int full_pel_vector, int &mv_component) {
+	int complement_r;
+	if (f == 1 || code == 0) {
+		complement_r = 0;
 	} else {
-		complement_horizontal_forward_r = forward_f - 1 - cur_macroblock.motion_horizontal_forward_r;
-	}
-	if (forward_f == 1 || cur_macroblock.motion_vertical_forward_code == 0) {
-		complement_vertical_forward_r = 0;
-	} else {
-		complement_vertical_forward_r = forward_f - 1 - cur_macroblock.motion_vertical_forward_r;
+		complement_r = f - 1 - r;
 	}
 
-	int right_little = cur_macroblock.motion_horizontal_forward_code * forward_f;
-	int right_big;
-	if (right_little == 0) {
-		right_big = 0;
+	int little = code * f;
+	int big;
+	if (little == 0) {
+		big = 0;
 	} else {
-		if (right_little > 0) {
-			right_little = right_little - complement_horizontal_forward_r;
-			right_big = right_little - 32 * forward_f;
+		if (little > 0) {
+			little = little - complement_r;
+			big = little - 32 * f;
 		} else {
-			right_little = right_little + complement_horizontal_forward_r;
-			right_big = right_little + 32 * forward_f;
+			little = little + complement_r;
+			big = little + 32 * f;
 		}
 	}
 
-	int down_little = cur_macroblock.motion_vertical_forward_code * forward_f;
-	int down_big;
-	if (down_little == 0) {
-		down_big = 0;
-	} else {
-		if (down_little > 0) {
-			down_little = down_little - complement_vertical_forward_r;
-			down_big = down_little - 32 * forward_f;
-		} else {
-			down_little = down_little + complement_vertical_forward_r;
-			down_big = down_little + 32 * forward_f;
-		}
-	}
-
-	int max = 16 * forward_f - 1;
-	int min = -16 * forward_f;
-
-	int new_vector = this->recon_right_for_prev + right_little;
+	int max = 16 * f - 1;
+	int min = -16 * f;
+	int new_vector = recon_prev + little;
 	if (new_vector <= max && new_vector >= min) {
-		this->recon_right_for = this->recon_right_for_prev + right_little;
+		recon = recon_prev + little;
 	} else {
-		this->recon_right_for = this->recon_right_for_prev + right_big;
+		recon = recon_prev + big;
 	}
-	this->recon_right_for_prev = this->recon_right_for;
-	if (cur_picture->full_pel_forward_vector) {
-		this->recon_right_for <<= 1;
+	recon_prev = recon;
+	if (full_pel_vector) {
+		recon <<= 1;
 	}
-
-	new_vector = this->recon_down_for_prev + down_little;
-	if (new_vector <= max && new_vector >= min) {
-		this->recon_down_for = this->recon_down_for_prev + down_little;
-	} else {
-		this->recon_down_for = this->recon_down_for_prev + down_big;
-	}
-	this->recon_down_for_prev = this->recon_down_for;
-	if (cur_picture->full_pel_forward_vector) {
-		this->recon_down_for <<= 1;
-	}
-
-	this->right_for = this->recon_right_for >> 1;
-	this->down_for = this->recon_down_for >> 1;
-
-	cout << "right_for: " << right_for << ", down_for: " << down_for << endl;
+	mv_component = recon >> 1;
 	// TODO: half
 }

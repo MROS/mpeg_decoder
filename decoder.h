@@ -178,7 +178,8 @@ public:
 
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra);
 
-	void calculate_forward_motion_vector();
+	void calculate_motion_vector(int f, int code, int r, int &recon_prev, int &recon, int full_pel_vector, int &mv_component);
+	// void calculate_forward_motion_vector();
 
 	void compensate();
 	void merge_blocks(double source[6][8][8]);
