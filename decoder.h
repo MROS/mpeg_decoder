@@ -8,8 +8,10 @@
 #include <stdint.h>
 #include <memory>
 
-#include "bit_reader.h"
 #include "image_queue.h"
+#include "util.h"
+#include "YCbCr.h"
+#include "bit_reader.h"
 
 static const int scan[8][8] = {
 		{ 0,  1,  5,  6, 14, 15, 27, 28},
@@ -68,6 +70,7 @@ struct Slice {
 	std::vector<std::shared_ptr<Macroblock>> macroblocks;
 };
 
+
 struct Picture {
 	uint32_t temporal_reference;
 	uint32_t picture_coding_type;
@@ -83,7 +86,10 @@ struct Picture {
 	std::vector<uint32_t> user_data;
 
 	std::vector<std::shared_ptr<Slice>> slices;
-	sf::Image image;
+
+	YCbCrImage y_cb_cr_image;
+
+	// sf::Image image;
 
 	uint32_t forward_r_size() {
 		return forward_f_code - 1;

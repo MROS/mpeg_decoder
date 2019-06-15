@@ -164,20 +164,24 @@ void Decoder::read_group_of_pictures() {
 	}
 	do {
 		read_picture();
-		picture_counter++;
-	} while (bit_reader.peek_bits(32) == picture_start_code);
-	image_queue->push(make_shared<sf::Image>(cur_picture->image));
 
-	int h = sequence_header.vertical_size;
-	int w = sequence_header.horizontal_size;
-	BMP *bmp = BMP_Create(w,h, 24);
-	for (int i = 0; i < w; i++) {
-		for (int j = 0; j < h; j++) {
-			auto pixel = cur_picture->image.getPixel(i, j);
-			BMP_SetPixelRGB(bmp, i, j, pixel.r, pixel.g, pixel.b);
+		sf::Image image = cur_picture->y_cb_cr_image.to_image();
+
+		image_queue->push(make_shared<sf::Image>(image));
+
+		picture_counter++;
+
+		int h = sequence_header.vertical_size;
+		int w = sequence_header.horizontal_size;
+		BMP *bmp = BMP_Create(w,h, 24);
+		for (int i = 0; i < w; i++) {
+			for (int j = 0; j < h; j++) {
+				auto pixel = image.getPixel(i, j);
+				BMP_SetPixelRGB(bmp, i, j, pixel.r, pixel.g, pixel.b);
+			}
 		}
-	}
-	BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
+		BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
+	} while (bit_reader.peek_bits(32) == picture_start_code);
 
 	// static int counter = 0;
 	// counter++;
@@ -196,7 +200,7 @@ void Decoder::read_picture() {
 	cout << endl << "###### 讀取 picture start code" << endl;
 
 	auto picture = make_shared<Picture>();
-	picture->image.create(sequence_header.horizontal_size, sequence_header.vertical_size);
+	picture->y_cb_cr_image.create(sequence_header.horizontal_size, sequence_header.vertical_size);
 
 	picture->temporal_reference = bit_reader.eat_bits(10);
 	cout << "temporal_reference: " << picture->temporal_reference << endl;
@@ -329,11 +333,11 @@ void Decoder::read_macroblock() {
 	cout << "macroblock_motion_forward: " << cur_macroblock.type.motion_forward << endl;
 	cout << "macroblock_motion_backward: " << cur_macroblock.type.motion_backward << endl;
 	cout << "macroblock_pattern: " << cur_macroblock.type.pattern << endl;
-	cout << "macroblock_intra: " << cur_macroblock.type.intra << endl;
+	cout << "macroblock_intra: " << cur_macroblock.type.intra << endl << endl;;
 
 	if (cur_macroblock.type.quant) {
 		cur_quantizer_scale = bit_reader.eat_bits(5);
-		cout << "quantizer_scale: " << cur_quantizer_scale << endl;
+		cout << "quantizer_scale: " << cur_quantizer_scale << endl << endl;
 	}
 	if (cur_macroblock.type.motion_forward) {
 		// motion_horizontal_forward
@@ -412,14 +416,14 @@ void Decoder::read_macroblock() {
 	}
 	past_intra_address = cur_macroblock_address;
 
-	sf::Color dest[16][16];
+	YCbCr dest[16][16];
 	merge_blocks(dest, after_idct);
 
 	int mb_row = cur_macroblock_address / cur_mb_width;
 	int mb_column = cur_macroblock_address % cur_mb_width;
 	for (int i = 0; i < 16; i++) {
 		for (int j = 0; j < 16; j++) {
-			cur_picture->image.setPixel(mb_column * 16 + j, mb_row * 16 + i, dest[i][j]);
+			cur_picture->y_cb_cr_image.buffer[mb_row * 16 + i][mb_column * 16 + j] = dest[i][j];
 		}
 	}
 

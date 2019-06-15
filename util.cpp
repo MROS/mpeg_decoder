@@ -1,4 +1,3 @@
-#include "util.h"
 #include <vector>
 #include <string>
 #include <dirent.h>
@@ -6,6 +5,9 @@
 #include <iostream>
 #include <math.h>
 #include <SFML/Graphics/Color.hpp>
+#include "decoder.h"
+#include "util.h"
+#include "YCbCr.h"
 
 using namespace std;
 
@@ -98,14 +100,14 @@ unsigned char chomp(double x) {
 	}
 }
 
-void merge_blocks(sf::Color dest[16][16], double source[6][8][8]) {
-	int max = 0;
-	int min = 255;
+void merge_blocks(YCbCr dest[16][16], double source[6][8][8]) {
+	// int max = 0;
+	// int min = 255;
 	for (int i = 0; i < 16; i++) {
 		for (int j = 0; j < 16; j++) {
-			double Y = chomp(source[(i/8) * 2 + (j/8)][i % 8][j % 8]);
-			double Cb = chomp(source[4][i / 2][j / 2]);
-			double Cr = chomp(source[5][i / 2][j / 2]);
+			dest[i][j].Y = chomp(source[(i/8) * 2 + (j/8)][i % 8][j % 8]);
+			dest[i][j].Cb = chomp(source[4][i / 2][j / 2]);
+			dest[i][j].Cr = chomp(source[5][i / 2][j / 2]);
 			// double R = Y + 1.28033 * Cb;
             // double G = Y - 0.21482 * Cr - 0.38059 * Cb;
             // double B = Y + 2.12798 * Cr;
@@ -113,13 +115,13 @@ void merge_blocks(sf::Color dest[16][16], double source[6][8][8]) {
 			// dest[i][j].g = chomp(G);
 			// dest[i][j].b = chomp(B);
 			// 公式來源： http://softpixel.com/~cwright/programming/colorspace/yuv/
-			Cb-=128, Cr-=128;
-			dest[i][j].r = chomp(Y + 1.4075*Cr);
-			dest[i][j].g = chomp(Y - 0.3455*Cb - 0.7169*Cr);
-			dest[i][j].b = chomp(Y + 1.779*Cb);
-			int avg = (dest[i][j].r / 3 + dest[i][j].g / 3 + dest[i][j].b / 3);
-			max = (avg > max) ? avg: max;
-			min = (avg < min) ? avg: min;
+			// Cb-=128, Cr-=128;
+			// dest[i][j].r = chomp(Y + 1.4075*Cr);
+			// dest[i][j].g = chomp(Y - 0.3455*Cb - 0.7169*Cr);
+			// dest[i][j].b = chomp(Y + 1.779*Cb);
+			// int avg = (dest[i][j].r / 3 + dest[i][j].g / 3 + dest[i][j].b / 3);
+			// max = (avg > max) ? avg: max;
+			// min = (avg < min) ? avg: min;
 		}
 	}
 	// cout << "diff: " << max - min << endl;
