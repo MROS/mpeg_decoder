@@ -48,7 +48,7 @@ static const uint8_t default_non_intra_quantizer_matrix[8][8] = {
 
 struct Macroblock {
 	MacroblockType type;
-	// uint32_t quantizer_scale;
+
 	int motion_horizontal_forward_code;
 	uint32_t motion_horizontal_forward_r;
 	int motion_vertical_forward_code;
@@ -141,6 +141,8 @@ private:
 	SequenceHeader sequence_header;
 	GroupOfPictures group_of_pictures;
 	std::shared_ptr<Picture> cur_picture; // cur 前綴代表 current。
+	std::shared_ptr<Picture> cur_I_frame; // cur 前綴代表 current。
+	std::shared_ptr<Picture> cur_P_frame; // cur 前綴代表 current。
 	Macroblock cur_macroblock;
 
 	int cur_quantizer_scale;
@@ -150,6 +152,10 @@ private:
 	int cur_mb_width;
 
 	int dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past;
+
+	int recon_right_for, recon_down_for; // for 代表 forward
+	int recon_right_for_prev, recon_down_for_prev; // for 代表 forward
+	int right_for, down_for;
 
 	int picture_counter;
 	int macroblock_counter;
@@ -171,6 +177,19 @@ public:
 	void recon_block(int dest[8][8], std::shared_ptr<int> dct_zz, int index);
 
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra);
+
+	void calculate_forward_motion_vector();
+
+	void compensate();
+	void merge_blocks(double source[6][8][8]);
+	void reset_forward_motion_vector() {
+		right_for = 0;
+		down_for = 0;
+		recon_right_for_prev = 0;
+		recon_down_for_prev = 0;
+		recon_right_for = 0;
+		recon_down_for = 0;
+	}
 
 };
 

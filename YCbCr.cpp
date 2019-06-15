@@ -1,6 +1,6 @@
-#include <math.h>
+#include <cmath>
+#include <memory.h>
 #include "YCbCr.h"
-#include "util.h"
 
 static unsigned char chomp(double x) {
 	if (x > 255.0) {
@@ -18,8 +18,9 @@ void YCbCrImage::create(int width, int height) {
     buffer = new YCbCr*[height];
     for (int i = 0; i < height; i++) {
         buffer[i] = new YCbCr[width];
+        memset(buffer[i], 0, sizeof(YCbCr) * width);
     }
-}	
+}
 
 	// NOTE: 不傳值可加速
 sf::Image YCbCrImage::to_image() {

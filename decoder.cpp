@@ -111,8 +111,7 @@ void Decoder::read_sequence_header() {
 		cout << "extension_start_code" << endl;
 		while(bit_reader.peek_bits(24) != 1) {
 			throw "尚不支援 sequence extension data"s;
-			uint8_t sequence_extension_data = bit_reader.eat_bits(8);
-			cout << "sequence_extension_data: " << sequence_extension_data << endl;
+			// uint8_t sequence_extension_data = bit_reader.eat_bits(8);
 		}
 		bit_reader.next_start_code();
 	}
@@ -136,11 +135,8 @@ void Decoder::read_group_of_pictures() {
 	cout << endl << "###### 讀取 group start code" << endl;
 
 	group_of_pictures.time_code = bit_reader.eat_bits(25);
-	cout << "time_code: " << group_of_pictures.time_code << endl;
 	group_of_pictures.closed_gop = bit_reader.eat_bits(1);
-	cout << "closed_gop: " << group_of_pictures.closed_gop << endl;
 	group_of_pictures.broken_link = bit_reader.eat_bits(1);
-	cout << "broken_link: " << group_of_pictures.broken_link << endl;
 
 	bit_reader.next_start_code();
 
@@ -148,8 +144,7 @@ void Decoder::read_group_of_pictures() {
 		bit_reader.eat_bits(32);
 		while (bit_reader.peek_bits(24) != 1) {
 			throw "尚不支援 group extension data"s;
-			uint32_t group_extension_data = bit_reader.eat_bits(8);
-			cout << "group_extension_data:" << group_extension_data << endl;
+			// uint32_t group_extension_data = bit_reader.eat_bits(8);
 		}
 		bit_reader.next_start_code();
 	}
@@ -182,15 +177,6 @@ void Decoder::read_group_of_pictures() {
 		}
 		BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
 	} while (bit_reader.peek_bits(32) == picture_start_code);
-
-	// static int counter = 0;
-	// counter++;
-	// if (counter == 30) {
-	// 	exit(0);
-	// }
-    // cout << "Press enter to continue ...";
-    // cin.get();
-     
 }
 
 void Decoder::read_picture() {
@@ -203,11 +189,9 @@ void Decoder::read_picture() {
 	picture->y_cb_cr_image.create(sequence_header.horizontal_size, sequence_header.vertical_size);
 
 	picture->temporal_reference = bit_reader.eat_bits(10);
-	cout << "temporal_reference: " << picture->temporal_reference << endl;
 	picture->picture_coding_type = bit_reader.eat_bits(3);
 	cout << "picture_coding_type: " << picture->picture_coding_type << endl;
 	picture->vbv_delay = bit_reader.eat_bits(16);
-	cout << "vbv_delay: " << picture->vbv_delay << endl;
 
 	if (picture->picture_coding_type == 2 || picture->picture_coding_type == 3) {
 		picture->full_pel_forward_vector = bit_reader.eat_bits(1);
@@ -224,9 +208,8 @@ void Decoder::read_picture() {
 	}
 	while (bit_reader.peek_bits(1) == 1) {
 		throw "尚不支援 extra information picture"s;
-		bit_reader.eat_bits(1);
-		uint32_t extra_information_picture = bit_reader.eat_bits(8);
-		cout << "extra_information_picture: " << extra_information_picture << endl;
+		// bit_reader.eat_bits(1);
+		// uint32_t extra_information_picture = bit_reader.eat_bits(8);
 	}
 	bit_reader.eat_bits(1);       // extra_bit_picture, "0"
 	bit_reader.next_start_code();
@@ -235,8 +218,7 @@ void Decoder::read_picture() {
 		bit_reader.eat_bits(32);
 		while (bit_reader.peek_bits(24) != 1) {
 			throw "尚不支援 picture extension data"s;
-			uint32_t picture_extension_data = bit_reader.eat_bits(8);
-			cout << "picture_extension_data:" << picture_extension_data << endl;
+			// uint32_t picture_extension_data = bit_reader.eat_bits(8);
 		}
 		bit_reader.next_start_code();
 	}
@@ -244,16 +226,21 @@ void Decoder::read_picture() {
 		bit_reader.eat_bits(32);
 		while (bit_reader.peek_bits(24) != 1) {
 			throw "尚不支援 picture user data"s;
-			uint32_t user_data = bit_reader.eat_bits(8);
-			cout << "user_data:" << user_data << endl;
+			// uint32_t user_data = bit_reader.eat_bits(8);
 		}
 		bit_reader.next_start_code();
 	}
 	cur_picture = picture;
 	do {
 		read_slice();
-		// return;
 	} while(bit_reader.peek_bits(32) <= slice_start_code_max && bit_reader.peek_bits(32) >= slice_start_code_min);
+
+	if (picture->picture_coding_type == 1) {
+		cur_I_frame = picture;
+	} else if (picture->picture_coding_type == 2) {
+		cur_I_frame = picture;
+		cur_P_frame = picture;
+	}
 }
 
 void Decoder::read_slice() {
@@ -267,6 +254,7 @@ void Decoder::read_slice() {
 	dct_dc_cb_past = 1024;
 	dct_dc_cr_past = 1024;
 	past_intra_address = -2;
+	reset_forward_motion_vector();
 
 	Slice slice;
 	slice.vertical_position = bit_reader.eat_bits(8);
@@ -284,9 +272,8 @@ void Decoder::read_slice() {
 
 	while (bit_reader.peek_bits(1) == 1) {
 		throw "尚不支援 extra information slice"s;
-		bit_reader.eat_bits(1);
-		uint32_t extra_information_slice = bit_reader.eat_bits(8);
-		cout << "extra_information_slice: " << extra_information_slice << endl;
+		// bit_reader.eat_bits(1);
+		// uint32_t extra_information_slice = bit_reader.eat_bits(8);
 	}
 	bit_reader.eat_bits(1);
 
@@ -316,10 +303,20 @@ void Decoder::read_macroblock() {
 	int macroblock_address_increment = bit_reader.read_vlc(bit_reader.macroblock_addr).value;
 	cout << "macroblock_address_increment: " << macroblock_address_increment << endl;
 
-	cur_macroblock_address += escape_count * 33;
-	cur_macroblock_address += macroblock_address_increment;
-	cout << "macroblock_address: " << cur_macroblock_address << endl;
+	if (escape_count > 0 || macroblock_address_increment > 1) {
+		cout << "skipped block" << endl;
+		int new_address = cur_macroblock_address + escape_count*33 + macroblock_address_increment;
+		reset_forward_motion_vector();
+		cur_macroblock_address += 1;
+		while (cur_macroblock_address < new_address) {
+			compensate();
+			cur_macroblock_address += 1;
+		}
+	} else {
+		cur_macroblock_address++;
+	}
 
+	cout << "macroblock_address: " << cur_macroblock_address << endl;
 
 	if (cur_picture->picture_coding_type == 1) {
 		cur_macroblock.type = bit_reader.read_vlc(bit_reader.intra_macroblock_type);
@@ -354,8 +351,9 @@ void Decoder::read_macroblock() {
 			cur_macroblock.motion_vertical_forward_r = bit_reader.eat_bits(cur_picture->forward_r_size());
 			cout << "motion_vertical_forward_r: " << cur_macroblock.motion_vertical_forward_r << endl;
 		}
-		exit(0);
-		throw "尚未處理 motion_forward"s;
+		calculate_forward_motion_vector();
+	} else {
+		reset_forward_motion_vector();
 	}
 	if (cur_macroblock.type.motion_backward) {
 		throw "尚未處理 motion_backward"s;
@@ -373,14 +371,23 @@ void Decoder::read_macroblock() {
 		}
 	}
 
+	if (!cur_macroblock.type.intra || macroblock_address_increment > 1 || escape_count > 0) {
+		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
+		dct_dc_y_past = 1024;
+		dct_dc_cb_past = 1024;
+		dct_dc_cr_past = 1024;
+		// throw "尚未支持 non intra"s;
+	}
+	
+
 	if (cur_macroblock.type.intra) {
 		for (int i = 0; i < 6; i++) {
 			pattern_code[i] = true;
 		}
 	}
 
-	int blocks[6][8][8];
-	double after_idct[6][8][8];
+	int blocks[6][8][8] = {};
+	double after_idct[6][8][8] = {};
 	for (int i = 0; i < 6; i++) {
 		if (pattern_code[i]) {
 			// cout << "######## block: " << i << endl;
@@ -414,25 +421,17 @@ void Decoder::read_macroblock() {
 			// }
 		}
 	}
-	past_intra_address = cur_macroblock_address;
 
-	YCbCr dest[16][16];
-	merge_blocks(dest, after_idct);
-
-	int mb_row = cur_macroblock_address / cur_mb_width;
-	int mb_column = cur_macroblock_address % cur_mb_width;
-	for (int i = 0; i < 16; i++) {
-		for (int j = 0; j < 16; j++) {
-			cur_picture->y_cb_cr_image.buffer[mb_row * 16 + i][mb_column * 16 + j] = dest[i][j];
-		}
-	}
-
+	
 	if (!cur_macroblock.type.intra) {
-		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
-		dct_dc_y_past = 1024;
-		dct_dc_cb_past = 1024;
-		dct_dc_cr_past = 1024;
-		throw "尚未支持 non intra"s;
+		compensate();
+	}
+	merge_blocks(after_idct);
+
+	if (cur_macroblock.type.intra) {
+		past_intra_address = cur_macroblock_address;
+		cout << "update past_intra to: " << cur_macroblock_address << endl;
+		cout << "update past_intra to: " << past_intra_address << endl;
 	}
 
 	if (cur_picture->picture_coding_type == 4) {
@@ -444,8 +443,6 @@ void Decoder::read_macroblock() {
 }
 
 shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra) {
-	// cout << endl << "###### 讀取 block " << i << endl;
-
 	int *dct_zz = new int[64];
     memset(dct_zz, 0, 64 * sizeof(int));
 	int index = 0;
@@ -492,11 +489,20 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra) {
 
 void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index) {
 	// TODO: 調整量化矩陣
-	auto &quant = sequence_header.intra_quantizer_matrix;
+	uint8_t (*quant)[8][8];
+	if (cur_macroblock.type.intra) {
+		quant = &sequence_header.intra_quantizer_matrix;
+	} else {
+		quant = &sequence_header.non_intra_quantizer_matrix;
+	}
 	for (int m = 0; m < 8; m++) {
 		for (int n = 0; n < 8; n++) {
 			int i = scan[m][n];
-			dct_recon[m][n] = (2 * (&*dct_zz)[i] * cur_quantizer_scale * (int)quant[m][n]) / 16;
+			if (cur_macroblock.type.intra) {
+				dct_recon[m][n] = (2*(&*dct_zz)[i] * cur_quantizer_scale * (int)(*quant)[m][n]) / 16;
+			} else {
+				dct_recon[m][n] = ((2*(&*dct_zz)[i] + sign((&*dct_zz)[i])) * cur_quantizer_scale * (int)(*quant)[m][n]) / 16;
+			}
 			if ((dct_recon[m][n] & 1) == 0) {
 				dct_recon[m][n] = dct_recon[m][n] - sign(dct_recon[m][n]);
 			}
@@ -508,6 +514,11 @@ void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index
 		}
 	}
 
+	if (!cur_macroblock.type.intra) {
+		return;
+	}
+
+	// 僅有 intra frame 要執行以下
 	int *dct_dc_past;
 	if (index < 4) {
 		dct_dc_past = &dct_dc_y_past;
@@ -528,4 +539,125 @@ void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index
 		}
 	}
 	*dct_dc_past = dct_recon[0][0];
+}
+
+void Decoder::compensate() {
+	YCbCr **buf = cur_picture->y_cb_cr_image.buffer;
+	YCbCr **past_buf = cur_I_frame->y_cb_cr_image.buffer;
+	int mb_row = cur_macroblock_address / cur_mb_width;
+	int mb_column = cur_macroblock_address % cur_mb_width;
+	for (int i = 0; i < 16; i++) {
+		for (int j = 0; j < 16; j++) {
+			int r = mb_row * 16 + i;
+			int c = mb_column * 16 + j;
+			buf[r][c].Y += past_buf[r + down_for][c + right_for].Y;
+			buf[r][c].Cb += past_buf[r + down_for][c + right_for].Cb;
+			buf[r][c].Cr += past_buf[r + down_for][c + right_for].Cr;
+		}
+	}
+	// cout << "after compensate" << endl;;
+	// for (int i = 0; i < 16; i++) {
+	// 	for (int j = 0; j < 16; j++) {
+	// 		int r = mb_row * 16 + i;
+	// 		int c = mb_column * 16 + j;
+	// 		cout << buf[r][c].Y << " ";
+	// 	}
+	// 	cout << endl;
+	// }
+}
+
+void Decoder::merge_blocks(double source[6][8][8]) {
+	YCbCr **buf = cur_picture->y_cb_cr_image.buffer;
+	int mb_row = cur_macroblock_address / cur_mb_width;
+	int mb_column = cur_macroblock_address % cur_mb_width;
+	cout << "merge blocks" << endl;
+	for (int i = 0; i < 16; i++) {
+		for (int j = 0; j < 16; j++) {
+			int r = mb_row * 16 + i;
+			int c = mb_column * 16 + j;
+			buf[r][c].Y += source[(i/8) * 2 + (j/8)][i % 8][j % 8];
+			buf[r][c].Cb += source[4][i / 2][j / 2];
+			buf[r][c].Cr += source[5][i / 2][j / 2];
+			buf[r][c].Y = chomp(buf[r][c].Y);
+			buf[r][c].Cb = chomp(buf[r][c].Cb);
+			buf[r][c].Cr = chomp(buf[r][c].Cr);
+			// cout << buf[r][c].Y << " ";
+		}
+		// cout << endl;
+	}
+}
+
+void Decoder::calculate_forward_motion_vector() {
+	int complement_horizontal_forward_r;
+	int complement_vertical_forward_r;
+	int forward_f = cur_picture->forward_f();
+	if (forward_f == 1 || cur_macroblock.motion_horizontal_forward_code == 0) {
+		complement_horizontal_forward_r = 0;
+	} else {
+		complement_horizontal_forward_r = forward_f - 1 - cur_macroblock.motion_horizontal_forward_r;
+	}
+	if (forward_f == 1 || cur_macroblock.motion_vertical_forward_code == 0) {
+		complement_vertical_forward_r = 0;
+	} else {
+		complement_vertical_forward_r = forward_f - 1 - cur_macroblock.motion_vertical_forward_r;
+	}
+
+	int right_little = cur_macroblock.motion_horizontal_forward_code * forward_f;
+	int right_big;
+	if (right_little == 0) {
+		right_big = 0;
+	} else {
+		if (right_little > 0) {
+			right_little = right_little - complement_horizontal_forward_r;
+			right_big = right_little - 32 * forward_f;
+		} else {
+			right_little = right_little + complement_horizontal_forward_r;
+			right_big = right_little + 32 * forward_f;
+		}
+	}
+
+	int down_little = cur_macroblock.motion_vertical_forward_code * forward_f;
+	int down_big;
+	if (down_little == 0) {
+		down_big = 0;
+	} else {
+		if (down_little > 0) {
+			down_little = down_little - complement_vertical_forward_r;
+			down_big = down_little - 32 * forward_f;
+		} else {
+			down_little = down_little + complement_vertical_forward_r;
+			down_big = down_little + 32 * forward_f;
+		}
+	}
+
+	int max = 16 * forward_f - 1;
+	int min = -16 * forward_f;
+
+	int new_vector = this->recon_right_for_prev + right_little;
+	if (new_vector <= max && new_vector >= min) {
+		this->recon_right_for = this->recon_right_for_prev + right_little;
+	} else {
+		this->recon_right_for = this->recon_right_for_prev + right_big;
+	}
+	this->recon_right_for_prev = this->recon_right_for;
+	if (cur_picture->full_pel_forward_vector) {
+		this->recon_right_for <<= 1;
+	}
+
+	new_vector = this->recon_down_for_prev + down_little;
+	if (new_vector <= max && new_vector >= min) {
+		this->recon_down_for = this->recon_down_for_prev + down_little;
+	} else {
+		this->recon_down_for = this->recon_down_for_prev + down_big;
+	}
+	this->recon_down_for_prev = this->recon_down_for;
+	if (cur_picture->full_pel_forward_vector) {
+		this->recon_down_for <<= 1;
+	}
+
+	this->right_for = this->recon_right_for >> 1;
+	this->down_for = this->recon_down_for >> 1;
+
+	cout << "right_for: " << right_for << ", down_for: " << down_for << endl;
+	// TODO: half
 }
