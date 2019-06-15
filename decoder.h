@@ -45,17 +45,16 @@ static const uint8_t default_non_intra_quantizer_matrix[8][8] = {
 };
 
 struct Macroblock {
-	uint32_t address_increment;
-	uint32_t macroblock_type;
-	uint32_t quantizer_scale;
-	uint32_t motion_horizontal_forward_code;
+	MacroblockType type;
+	// uint32_t quantizer_scale;
+	int motion_horizontal_forward_code;
 	uint32_t motion_horizontal_forward_r;
-	uint32_t motion_vertical_forward_code;
+	int motion_vertical_forward_code;
 	uint32_t motion_vertical_forward_r;
 
-	uint32_t motion_horizontal_backward_code;
+	int motion_horizontal_backward_code;
 	uint32_t motion_horizontal_backward_r;
-	uint32_t motion_vertical_backward_code;
+	int motion_vertical_backward_code;
 	uint32_t motion_vertical_backward_r;
 
 	uint32_t coded_block_pattern;
@@ -74,7 +73,9 @@ struct Picture {
 	uint32_t picture_coding_type;
 	uint32_t vbv_delay;
 	bool full_pel_forward_vector;
+
 	uint32_t forward_f_code;
+
 	bool full_pel_backward_vector;
 	uint32_t backward_f_code;
 	std::vector<uint32_t> extra_information_picture;
@@ -83,6 +84,13 @@ struct Picture {
 
 	std::vector<std::shared_ptr<Slice>> slices;
 	sf::Image image;
+
+	uint32_t forward_r_size() {
+		return forward_f_code - 1;
+	}
+	uint32_t forward_f() {
+		return 1 << forward_r_size();
+	}
 };
 
 struct GroupOfPictures {
@@ -127,7 +135,7 @@ private:
 	SequenceHeader sequence_header;
 	GroupOfPictures group_of_pictures;
 	std::shared_ptr<Picture> cur_picture; // cur 前綴代表 current。
-
+	Macroblock cur_macroblock;
 
 	int cur_quantizer_scale;
 	int past_intra_address;

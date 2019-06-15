@@ -164,8 +164,8 @@ void Decoder::read_group_of_pictures() {
 	}
 	do {
 		read_picture();
+		picture_counter++;
 	} while (bit_reader.peek_bits(32) == picture_start_code);
-	picture_counter++;
 	image_queue->push(make_shared<sf::Image>(cur_picture->image));
 
 	int h = sequence_header.vertical_size;
@@ -206,13 +206,13 @@ void Decoder::read_picture() {
 	cout << "vbv_delay: " << picture->vbv_delay << endl;
 
 	if (picture->picture_coding_type == 2 || picture->picture_coding_type == 3) {
-		throw "目前僅支援 I 幀"s;
-		uint32_t full_pel_forward_vector = bit_reader.eat_bits(1);
-		cout << "full_pel_forward_vector: " << full_pel_forward_vector << endl;
-		uint32_t forward_f_code = bit_reader.eat_bits(3);
-		cout << "forward_f_code: " << forward_f_code << endl;
+		picture->full_pel_forward_vector = bit_reader.eat_bits(1);
+		cout << "full_pel_forward_vector: " << picture->full_pel_forward_vector << endl;
+		picture->forward_f_code = bit_reader.eat_bits(3);
+		cout << "forward_f_code: " << picture->forward_f_code << endl;
 	}
 	if (picture->picture_coding_type == 3) {
+		throw "目前僅支援 I, P 幀"s;
 		uint32_t full_pel_backward_vector = bit_reader.eat_bits(1);
 		cout << "full_pel_backward_vector: " << full_pel_backward_vector << endl;
 		uint32_t backward_f_code = bit_reader.eat_bits(3);
@@ -298,7 +298,6 @@ void Decoder::read_macroblock() {
 		bit_reader.eat_bits(11);
 		cout << endl << "###### 讀取 macroblock stuffing" << endl;
 	}
-	macroblock_counter++;
 
 	int escape_count = 0;
 	while(bit_reader.peek_bits(11) == 8) {
@@ -307,7 +306,8 @@ void Decoder::read_macroblock() {
 		escape_count += 1;
 	}
 	cout << endl << "###### picture: " << picture_counter << endl;
-	cout << endl << "###### 繼續讀取 macroblock: " << macroblock_counter << endl;
+	cout << "###### 繼續讀取 macroblock: " << macroblock_counter << endl;
+	macroblock_counter++;
 
 	int macroblock_address_increment = bit_reader.read_vlc(bit_reader.macroblock_addr).value;
 	cout << "macroblock_address_increment: " << macroblock_address_increment << endl;
@@ -317,31 +317,48 @@ void Decoder::read_macroblock() {
 	cout << "macroblock_address: " << cur_macroblock_address << endl;
 
 
-	MacroblockType macroblock_type;
 	if (cur_picture->picture_coding_type == 1) {
-		macroblock_type = bit_reader.read_vlc(bit_reader.intra_macroblock_type);
+		cur_macroblock.type = bit_reader.read_vlc(bit_reader.intra_macroblock_type);
+	} else if (cur_picture->picture_coding_type == 2) {
+		cur_macroblock.type = bit_reader.read_vlc(bit_reader.p_macroblock_type);
 	} else {
-		throw "尚不支援 p, b 幀"s;
+		throw "尚不支援 B 幀"s;
 	}
-	cout << "macroblock_quant: " << macroblock_type.quant << endl;
-	cout << "macroblock_motion_forward: " << macroblock_type.motion_forward << endl;
-	cout << "macroblock_motion_backward: " << macroblock_type.motion_backward << endl;
-	cout << "macroblock_pattern: " << macroblock_type.pattern << endl;
-	cout << "macroblock_intra: " << macroblock_type.intra << endl;
 
-	if (macroblock_type.quant) {
+	cout << "macroblock_quant: " << cur_macroblock.type.quant << endl;
+	cout << "macroblock_motion_forward: " << cur_macroblock.type.motion_forward << endl;
+	cout << "macroblock_motion_backward: " << cur_macroblock.type.motion_backward << endl;
+	cout << "macroblock_pattern: " << cur_macroblock.type.pattern << endl;
+	cout << "macroblock_intra: " << cur_macroblock.type.intra << endl;
+
+	if (cur_macroblock.type.quant) {
 		cur_quantizer_scale = bit_reader.eat_bits(5);
 		cout << "quantizer_scale: " << cur_quantizer_scale << endl;
 	}
-	if (macroblock_type.motion_forward) {
+	if (cur_macroblock.type.motion_forward) {
+		// motion_horizontal_forward
+		cur_macroblock.motion_horizontal_forward_code = bit_reader.read_vlc(bit_reader.motion_vector).value;
+		cout << "motion_horizontal_forward_code: " << cur_macroblock.motion_horizontal_forward_code << endl;
+		if (cur_picture->forward_f() != 1 && cur_macroblock.motion_horizontal_forward_code != 0) {
+			cur_macroblock.motion_horizontal_forward_r = bit_reader.eat_bits(cur_picture->forward_r_size());
+			cout << "motion_horizontal_forward_r: " << cur_macroblock.motion_horizontal_forward_r << endl;
+		}
+		// motion_vertical_forward
+		cur_macroblock.motion_vertical_forward_code = bit_reader.read_vlc(bit_reader.motion_vector).value;
+		cout << "motion_vertical_forward_code: " << cur_macroblock.motion_vertical_forward_code << endl;
+		if (cur_picture->forward_f() != 1 && cur_macroblock.motion_vertical_forward_code != 0) {
+			cur_macroblock.motion_vertical_forward_r = bit_reader.eat_bits(cur_picture->forward_r_size());
+			cout << "motion_vertical_forward_r: " << cur_macroblock.motion_vertical_forward_r << endl;
+		}
+		exit(0);
 		throw "尚未處理 motion_forward"s;
 	}
-	if (macroblock_type.motion_backward) {
+	if (cur_macroblock.type.motion_backward) {
 		throw "尚未處理 motion_backward"s;
 	}
 
 	bool pattern_code[6] = {false, false, false, false, false, false};
-	if (macroblock_type.pattern) {
+	if (cur_macroblock.type.pattern) {
 		IntWrap coded_block_pattern = bit_reader.read_vlc(bit_reader.coded_block_pattern);
 		cout << "coded_block_pattern: " << coded_block_pattern.value << endl;
 		int cbp = coded_block_pattern.value;
@@ -352,7 +369,7 @@ void Decoder::read_macroblock() {
 		}
 	}
 
-	if (macroblock_type.intra) {
+	if (cur_macroblock.type.intra) {
 		for (int i = 0; i < 6; i++) {
 			pattern_code[i] = true;
 		}
@@ -363,7 +380,7 @@ void Decoder::read_macroblock() {
 	for (int i = 0; i < 6; i++) {
 		if (pattern_code[i]) {
 			// cout << "######## block: " << i << endl;
-			shared_ptr<int> dct_zz = read_block(i, macroblock_type.intra);
+			shared_ptr<int> dct_zz = read_block(i, cur_macroblock.type.intra);
 			// cout << "dct_zz:" << endl;
 			// for (int j = 0; j < 8; j++) {
 			// 	for (int k = 0; k < 8; k++) {
@@ -405,10 +422,8 @@ void Decoder::read_macroblock() {
 			cur_picture->image.setPixel(mb_column * 16 + j, mb_row * 16 + i, dest[i][j]);
 		}
 	}
-	// return;
-	// exit(0);
 
-	if (!macroblock_type.intra) {
+	if (!cur_macroblock.type.intra) {
 		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
 		dct_dc_y_past = 1024;
 		dct_dc_cb_past = 1024;
