@@ -29,22 +29,6 @@ vector<string> split(const string& str) {
 	}
 	return ret;
 }
-vector<string> dir_list(string dir_name) {
-	vector<string> ret;
-	DIR *dir;
-	struct dirent *ent;
-	if ((dir = opendir(dir_name.c_str())) != nullptr) {
-		while ((ent = readdir(dir)) != nullptr) {
-			ret.emplace_back(ent->d_name);
-		}
-		closedir(dir);
-		sort(ret.begin(), ret.end());
-		return ret;
-	} else {
-		perror("");
-		throw "can't open dir"s;
-	}
-}
 
 double c(int i) {
 	static double x = 1.0 / sqrt(2.0);

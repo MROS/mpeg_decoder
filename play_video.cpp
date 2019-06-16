@@ -13,16 +13,15 @@
 
 using namespace std;
 
-
 void play_video(shared_ptr<ImageQueue> image_queue) {
-	sf::RenderWindow window(sf::VideoMode(320, 240), "mpeg-1 播放器");
+	sf::RenderWindow window(sf::VideoMode(1080, 240), "mpeg-1 播放器");
 
 	while (true) {
 		sf::Event event;
 		while (window.pollEvent(event)) {
 			if (event.type == sf::Event::Closed) {
 				window.close();
-				return;
+				exit(0);
 			}
 		}
 
@@ -37,8 +36,6 @@ void play_video(shared_ptr<ImageQueue> image_queue) {
 		window.display();
 
 		this_thread::sleep_for(chrono::milliseconds(1000 / 24));
-		// this_thread::sleep_for(chrono::milliseconds(1000 / 60));
-		// this_thread::sleep_for(chrono::milliseconds(1000 / 12));
 	}
 
 }

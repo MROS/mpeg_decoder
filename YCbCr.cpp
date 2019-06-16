@@ -22,7 +22,7 @@ void YCbCrImage::create(int width, int height) {
     }
 }
 
-	// NOTE: 不傳值可加速
+// NOTE: 不傳值可加速
 sf::Image YCbCrImage::to_image() {
     sf::Image image;
     image.create(width, height);

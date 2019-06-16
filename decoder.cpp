@@ -7,7 +7,6 @@
 #include "decoder.h"
 #include "util.h"
 #include "image_queue.h"
-#include "qdbmp.h"
 
 using namespace std;
 
@@ -44,7 +43,6 @@ void Decoder::video_sequence() {
 		} while (bit_reader.peek_bits(32) == group_start_code);
 	} while (bit_reader.peek_bits(32) == sequence_header_code);
 	cout << "sequence 結束" << endl;
-	// exit(0);
 }
 
 void Decoder::read_sequence_header() {
@@ -235,16 +233,8 @@ void Decoder::push_queue(shared_ptr<Picture> p) {
 	if (p == nullptr) { return; }
 	sf::Image image = p->y_cb_cr_image.to_image();
 	image_queue->push(make_shared<sf::Image>(image));
-	// int h = sequence_header.vertical_size;
-	// int w = sequence_header.horizontal_size;
-	// BMP *bmp = BMP_Create(w,h, 24);
-	// for (int i = 0; i < w; i++) {
-	// 	for (int j = 0; j < h; j++) {
-	// 		auto pixel = image.getPixel(i, j);
-	// 		BMP_SetPixelRGB(bmp, i, j, pixel.r, pixel.g, pixel.b);
-	// 	}
-	// }
-	// BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
+	// NOTE: 可以在此處輸出圖片，方便出錯
+	// sf::Image 的說明，見 https://www.sfml-dev.org/documentation/2.5.1/classsf_1_1Image.php
 }
 
 void Decoder::read_slice() {
@@ -292,17 +282,14 @@ void Decoder::read_slice() {
 void Decoder::read_macroblock() {
 	while(bit_reader.peek_bits(11) == 15) {
 		bit_reader.eat_bits(11);
-		cout << endl << "###### 讀取 macroblock stuffing" << endl;
 	}
 
 	int escape_count = 0;
 	while(bit_reader.peek_bits(11) == 8) {
 		bit_reader.eat_bits(11);
-		cout << endl << "###### 讀取 macroblock escape" << endl;
 		escape_count += 1;
 	}
 	cout << endl << "###### picture: " << picture_counter << endl;
-	cout << "###### 繼續讀取 macroblock: " << macroblock_counter << endl;
 	macroblock_counter++;
 
 	int macroblock_address_increment = bit_reader.read_vlc(bit_reader.macroblock_addr).value;
@@ -335,15 +322,15 @@ void Decoder::read_macroblock() {
 		cur_macroblock.type = bit_reader.read_vlc(bit_reader.b_macroblock_type);
 	}
 
-	cout << "macroblock_quant: " << cur_macroblock.type.quant << endl;
-	cout << "macroblock_motion_forward: " << cur_macroblock.type.motion_forward << endl;
-	cout << "macroblock_motion_backward: " << cur_macroblock.type.motion_backward << endl;
-	cout << "macroblock_pattern: " << cur_macroblock.type.pattern << endl;
-	cout << "macroblock_intra: " << cur_macroblock.type.intra << endl << endl;;
+	// cout << "macroblock_quant: " << cur_macroblock.type.quant << endl;
+	// cout << "macroblock_motion_forward: " << cur_macroblock.type.motion_forward << endl;
+	// cout << "macroblock_motion_backward: " << cur_macroblock.type.motion_backward << endl;
+	// cout << "macroblock_pattern: " << cur_macroblock.type.pattern << endl;
+	// cout << "macroblock_intra: " << cur_macroblock.type.intra << endl << endl;;
 
 	if (cur_macroblock.type.quant) {
 		cur_quantizer_scale = bit_reader.eat_bits(5);
-		cout << "quantizer_scale: " << cur_quantizer_scale << endl << endl;
+		// cout << "quantizer_scale: " << cur_quantizer_scale << endl << endl;
 	}
 	if (cur_macroblock.type.motion_forward) {
 		cur_macroblock.motion_horizontal_forward_code = bit_reader.read_vlc(bit_reader.motion_vector).value;
@@ -373,6 +360,7 @@ void Decoder::read_macroblock() {
 			this->down_for
 		);
 	} else if (cur_picture->picture_coding_type == 2) {
+		// NOTE: P 幀跟 B 幀的重置規則不同
 		reset_forward_motion_vector();
 	}
 	if (cur_macroblock.type.motion_backward) {
@@ -417,11 +405,9 @@ void Decoder::read_macroblock() {
 	}
 
 	if (!cur_macroblock.type.intra || macroblock_address_increment > 1 || escape_count > 0) {
-		// 重置 dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past
 		dct_dc_y_past = 1024;
 		dct_dc_cb_past = 1024;
 		dct_dc_cr_past = 1024;
-		// throw "尚未支持 non intra"s;
 	}
 	
 
@@ -435,6 +421,7 @@ void Decoder::read_macroblock() {
 	double after_idct[6][8][8] = {};
 	for (int i = 0; i < 6; i++) {
 		if (pattern_code[i]) {
+			// NOTE: 底下的註解拿掉可以打印每個 Block 的解碼過程
 			// cout << "######## block: " << i << endl;
 			shared_ptr<int> dct_zz = read_block(i, cur_macroblock.type.intra);
 			// cout << "dct_zz:" << endl;
@@ -693,6 +680,5 @@ void Decoder::calculate_motion_vector(int f, int code, int r, int &recon_prev, i
 		recon <<= 1;
 	}
 	mv_component = recon >> 1;
-	cout << "motion_vector_component: " << mv_component << endl;
 	// TODO: half
 }
