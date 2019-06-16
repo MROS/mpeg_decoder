@@ -3,6 +3,7 @@
 
 using namespace std;
 
+// TODO: 似乎有死鎖？
 shared_ptr<sf::Image> ImageQueue::pop() {
     unique_lock<mutex> lock(this->mutex_lock);
     while (this->q.empty()) {

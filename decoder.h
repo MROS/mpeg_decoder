@@ -75,17 +75,16 @@ struct Picture {
 	uint32_t temporal_reference;
 	uint32_t picture_coding_type;
 	uint32_t vbv_delay;
-	bool full_pel_forward_vector;
 
+	bool full_pel_forward_vector;
 	uint32_t forward_f_code;
 
 	bool full_pel_backward_vector;
 	uint32_t backward_f_code;
+
 	std::vector<uint32_t> extra_information_picture;
 	std::vector<uint32_t> picture_extension_data;
 	std::vector<uint32_t> user_data;
-
-	std::vector<std::shared_ptr<Slice>> slices;
 
 	YCbCrImage y_cb_cr_image;
 
@@ -97,6 +96,12 @@ struct Picture {
 	uint32_t forward_f() {
 		return 1 << forward_r_size();
 	}
+	uint32_t backward_r_size() {
+		return backward_f_code - 1;
+	}
+	uint32_t backward_f() {
+		return 1 << backward_r_size();
+	}
 };
 
 struct GroupOfPictures {
@@ -106,7 +111,9 @@ struct GroupOfPictures {
 	std::vector<uint32_t> group_extension_data;
 	std::vector<uint32_t> user_data;
 
-	std::vector<std::shared_ptr<Picture>> pictures;
+	int picture_counter;
+	GroupOfPictures() { picture_counter = 0; }
+	// std::vector<std::shared_ptr<Picture>> pictures;
 };
 
 struct SequenceHeader {
@@ -141,8 +148,8 @@ private:
 	SequenceHeader sequence_header;
 	GroupOfPictures group_of_pictures;
 	std::shared_ptr<Picture> cur_picture; // cur 前綴代表 current。
-	std::shared_ptr<Picture> cur_I_frame; // cur 前綴代表 current。
-	std::shared_ptr<Picture> cur_P_frame; // cur 前綴代表 current。
+	std::shared_ptr<Picture> cur_forward_frame; // cur 前綴代表 current。
+	std::shared_ptr<Picture> cur_backward_frame; // cur 前綴代表 current。
 	Macroblock cur_macroblock;
 
 	int cur_quantizer_scale;
@@ -154,14 +161,25 @@ private:
 	int dct_dc_y_past, dct_dc_cb_past, dct_dc_cr_past;
 
 	int recon_right_for, recon_down_for; // for 代表 forward
-	int recon_right_for_prev, recon_down_for_prev; // for 代表 forward
+	int recon_right_for_prev, recon_down_for_prev;
 	int right_for, down_for;
+
+	int recon_right_back, recon_down_back; // back 代表 backward
+	int recon_right_back_prev, recon_down_back_prev;
+	int right_back, down_back;
 
 	int picture_counter;
 	int macroblock_counter;
 
 public:
-	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f), image_queue(image_queue), picture_counter(0), macroblock_counter(0) {};
+	Decoder(std::ifstream &f, std::shared_ptr<ImageQueue> image_queue): bit_reader(f),
+	image_queue(image_queue),
+	cur_picture(nullptr),
+	cur_forward_frame(nullptr),
+	cur_backward_frame(nullptr),
+	picture_counter(0),
+	macroblock_counter(0)
+	{};
 	void start();
 	void video_sequence();
 	void read_sequence_header();
@@ -169,6 +187,8 @@ public:
 	void read_group_of_pictures();
 
 	void read_picture();
+
+	void push_queue(std::shared_ptr<Picture> p);
 
 	void read_slice();
 
@@ -179,9 +199,10 @@ public:
 	std::shared_ptr <int> read_block(int i, bool macroblock_intra);
 
 	void calculate_motion_vector(int f, int code, int r, int &recon_prev, int &recon, int full_pel_vector, int &mv_component);
-	// void calculate_forward_motion_vector();
 
-	void compensate();
+	void compensate_forward();
+	void compensate_backward();
+	void compensate_to_half();
 	void merge_blocks(double source[6][8][8]);
 	void reset_forward_motion_vector() {
 		right_for = 0;
@@ -191,7 +212,14 @@ public:
 		recon_right_for = 0;
 		recon_down_for = 0;
 	}
-
+	void reset_backward_motion_vector() {
+		right_back = 0;
+		down_back = 0;
+		recon_right_back_prev = 0;
+		recon_down_back_prev = 0;
+		recon_right_back = 0;
+		recon_down_back = 0;
+	}
 };
 
 #endif //MPEG_DECODER_DECODER_H
