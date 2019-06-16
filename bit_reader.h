@@ -53,7 +53,6 @@ struct Code {
 
 template<typename T>
 VlcTable<T>::VlcTable(std::string filename) {
-	std::cout << "read file: " << filename << std::endl;
 	std::ifstream file(filename);
 	std::string line;
 
@@ -82,8 +81,6 @@ VlcTable<T>::VlcTable(std::string filename) {
 
 	this->min_len = codes[0].key.length();
 	this->max_len = codes[codes.size() - 1].key.length();
-
-	std::cout << "min_len: " << this->min_len << ", max_len: " << this->max_len << std::endl;
 
 	this->table = std::vector<std::vector<T>>(this->max_len + 1);
 	this->min_code = std::vector<int>(this->max_len + 1);

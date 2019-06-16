@@ -69,11 +69,9 @@ void BitReader::next_start_code() {
 	if (this->bit_head != 0) {
 		this->bit_head = 0;
 		this->current_byte = this->file.get();
-		cout << "前進 1 byte" << endl;
 	}
 	while (this->peek_bits(24) != 1) {
 		this->current_byte = this->file.get();
-		cout << "前進 1 byte" << endl;
 	}
 }
 
@@ -89,7 +87,6 @@ T BitReader::read_vlc(VlcTable<T> &table) {
     uint32_t code = this->eat_bits(table.min_len);
 
     while (len <= table.max_len) {
-//		cout << "len: " << len << ", code: " << code << endl;
     	if (code - table.min_code[len] < table.table[len].size()) {
 			return table.table[len][code - table.min_code[len]];
     	}
@@ -106,7 +103,6 @@ T BitReader::read_vlc(VlcTable<T> &table) {
 
     throw "無法匹配霍夫曼表"s;
 
-//	return 0;
 }
 
 template IntWrap BitReader::read_vlc(VlcTable<IntWrap> &table);
@@ -120,10 +116,8 @@ RunLevel BitReader::read_run_level(bool coeff_next) {
 		ret.run = this->eat_bits(6);
 		int tmp = this->eat_bits(8);
 		if (tmp == 0b00000000) {
-			// cout << "128 ~ 255" << endl;
 			ret.level = this->eat_bits(8);
 		} else if (tmp == 0b10000000) {
-			// cout << "-128 ~ -256" << endl;
 			ret.level = (int)this->eat_bits(8) - 256;
 		} else {
 			ret.level = tmp > 128 ? tmp - 256: tmp;
@@ -131,7 +125,6 @@ RunLevel BitReader::read_run_level(bool coeff_next) {
 		return ret;
 	} else {
 		RunLevel ret = this->read_vlc(this->run_level);
-		// TODO: fixed length
 		if (ret.run == 0 && ret.level == 1 && coeff_next) { // 怪異規定。Table 2-B.5c NOTE2, 3
 			this->eat_bits(1);
 		}

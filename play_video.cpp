@@ -37,6 +37,8 @@ void play_video(shared_ptr<ImageQueue> image_queue) {
 		window.display();
 
 		this_thread::sleep_for(chrono::milliseconds(1000 / 24));
+		// this_thread::sleep_for(chrono::milliseconds(1000 / 60));
+		// this_thread::sleep_for(chrono::milliseconds(1000 / 12));
 	}
 
 }

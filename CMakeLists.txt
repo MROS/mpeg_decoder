@@ -7,6 +7,6 @@ add_executable(mpeg-decoder main.cpp decoder.cpp play_video.cpp bit_reader.cpp u
 
 target_compile_options(mpeg-decoder PRIVATE -Wall -Wextra -pedantic)
 find_package(Threads)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
 target_link_libraries(mpeg-decoder pthread -lsfml-graphics -lsfml-window -lsfml-system)

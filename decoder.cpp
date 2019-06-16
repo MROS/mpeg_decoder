@@ -44,7 +44,7 @@ void Decoder::video_sequence() {
 		} while (bit_reader.peek_bits(32) == group_start_code);
 	} while (bit_reader.peek_bits(32) == sequence_header_code);
 	cout << "sequence 結束" << endl;
-	exit(0);
+	// exit(0);
 }
 
 void Decoder::read_sequence_header() {
@@ -226,7 +226,6 @@ void Decoder::read_picture() {
 	} while(bit_reader.peek_bits(32) <= slice_start_code_max && bit_reader.peek_bits(32) >= slice_start_code_min);
 	if (picture->picture_coding_type <= 2) {
 		cur_backward_frame = picture;
-		// swap(cur_picture, cur_backward_frame);
 	} else {
 		push_queue(picture);
 	}
@@ -236,16 +235,16 @@ void Decoder::push_queue(shared_ptr<Picture> p) {
 	if (p == nullptr) { return; }
 	sf::Image image = p->y_cb_cr_image.to_image();
 	image_queue->push(make_shared<sf::Image>(image));
-	int h = sequence_header.vertical_size;
-	int w = sequence_header.horizontal_size;
-	BMP *bmp = BMP_Create(w,h, 24);
-	for (int i = 0; i < w; i++) {
-		for (int j = 0; j < h; j++) {
-			auto pixel = image.getPixel(i, j);
-			BMP_SetPixelRGB(bmp, i, j, pixel.r, pixel.g, pixel.b);
-		}
-	}
-	BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
+	// int h = sequence_header.vertical_size;
+	// int w = sequence_header.horizontal_size;
+	// BMP *bmp = BMP_Create(w,h, 24);
+	// for (int i = 0; i < w; i++) {
+	// 	for (int j = 0; j < h; j++) {
+	// 		auto pixel = image.getPixel(i, j);
+	// 		BMP_SetPixelRGB(bmp, i, j, pixel.r, pixel.g, pixel.b);
+	// 	}
+	// }
+	// BMP_WriteFile(bmp, ("frame" + to_string(picture_counter) + ".bmp").c_str());
 }
 
 void Decoder::read_slice() {
@@ -539,7 +538,6 @@ shared_ptr<int> Decoder::read_block(int i, bool macroblock_intra) {
 }
 
 void Decoder::recon_block(int dct_recon[8][8], shared_ptr<int> dct_zz, int index) {
-	// TODO: 調整量化矩陣
 	uint8_t (*quant)[8][8];
 	if (cur_macroblock.type.intra) {
 		quant = &sequence_header.intra_quantizer_matrix;
@@ -605,20 +603,7 @@ void Decoder::compensate_forward() {
 			buf[r][c].Y += past_buf[r + down_for][c + right_for].Y;
 			buf[r][c].Cb += past_buf[r + down_for][c + right_for].Cb;
 			buf[r][c].Cr += past_buf[r + down_for][c + right_for].Cr;
-			// cout << "r: " << r << ", c: " << c << endl;
-			// cout << "down_for: " << down_for << ", right_for: " << right_for << endl;
-			// cout << buf[r][c].Y << " ";
 		}
-		// cout << endl;
-	}
-	cout << "compensate_forward over\n";
-	for (int i = 0; i < 16; i++) {
-		for (int j = 0; j < 16; j++) {
-			int r = mb_row * 16 + i;
-			int c = mb_column * 16 + j;
-			cout << buf[r][c].Y << " ";
-		}
-		cout << endl;
 	}
 }
 
@@ -654,7 +639,6 @@ void Decoder::compensate_to_half() {
 	}
 }
 
-
 void Decoder::merge_blocks(double source[6][8][8]) {
 	YCbCr **buf = cur_picture->y_cb_cr_image.buffer;
 	int mb_row = cur_macroblock_address / cur_mb_width;
@@ -670,12 +654,9 @@ void Decoder::merge_blocks(double source[6][8][8]) {
 			buf[r][c].Y = chomp(buf[r][c].Y);
 			buf[r][c].Cb = chomp(buf[r][c].Cb);
 			buf[r][c].Cr = chomp(buf[r][c].Cr);
-			// cout << buf[r][c].Y << " ";
 		}
-		// cout << endl;
 	}
 }
-
 
 void Decoder::calculate_motion_vector(int f, int code, int r, int &recon_prev, int &recon, int full_pel_vector, int &mv_component) {
 	int complement_r;

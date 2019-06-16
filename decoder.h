@@ -66,8 +66,6 @@ struct Slice {
 	uint32_t vertical_position;
 	uint32_t quantizer_scale;
 	std::vector<uint32_t> extra_information_slice;
-
-	std::vector<std::shared_ptr<Macroblock>> macroblocks;
 };
 
 
@@ -87,8 +85,6 @@ struct Picture {
 	std::vector<uint32_t> user_data;
 
 	YCbCrImage y_cb_cr_image;
-
-	// sf::Image image;
 
 	uint32_t forward_r_size() {
 		return forward_f_code - 1;
@@ -113,7 +109,6 @@ struct GroupOfPictures {
 
 	int picture_counter;
 	GroupOfPictures() { picture_counter = 0; }
-	// std::vector<std::shared_ptr<Picture>> pictures;
 };
 
 struct SequenceHeader {
