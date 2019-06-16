@@ -1,15 +1,11 @@
-#include <cstdio>
-#include <string>
-#include <iostream>
-#include <algorithm>
 #include <thread>
 #include <memory>
 #include <chrono>
 #include <SFML/Graphics.hpp>
+#include <SFML/Graphics/Image.hpp>
 
 #include "play_video.h"
 #include "image_queue.h"
-#include <SFML/Graphics/Image.hpp>
 
 using namespace std;
 

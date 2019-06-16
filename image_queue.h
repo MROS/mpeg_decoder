@@ -1,7 +1,5 @@
 #ifndef MPEG_DECODER_PICTURE_H
 #define MPEG_DECODER_PICTURE_H
-#include <vector>
-
 #include <queue>
 #include <memory>
 #include <mutex>
@@ -15,7 +13,6 @@ struct ImageQueue {
 
 	std::shared_ptr<sf::Image> pop();
 	void push(const std::shared_ptr<sf::Image>& image);
-
 };
 
 #endif

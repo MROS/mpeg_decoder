@@ -1,7 +1,6 @@
 #ifndef MPEG_DECODER_UTIL_H
 #define MPEG_DECODER_UTIL_H
 
-#include <vector>
 #include <string>
 #include <SFML/Graphics/Color.hpp>
 #include "YCbCr.h"

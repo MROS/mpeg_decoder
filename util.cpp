@@ -1,6 +1,5 @@
 #include <vector>
 #include <string>
-#include <dirent.h>
 #include <algorithm>
 #include <iostream>
 #include <cmath>
