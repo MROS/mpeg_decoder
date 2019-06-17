@@ -10,7 +10,7 @@
 using namespace std;
 
 void play_video(shared_ptr<ImageQueue> image_queue) {
-	sf::RenderWindow window(sf::VideoMode(1080, 240), "mpeg-1 播放器");
+	sf::RenderWindow window(sf::VideoMode(320, 240), "mpeg-1 播放器");
 
 	while (true) {
 		sf::Event event;
